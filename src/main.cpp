@@ -3,7 +3,7 @@
 
 #include <maths.h>
 #include <ins.h>
-//
+
 float x, y, z;
 
 INS ins;
