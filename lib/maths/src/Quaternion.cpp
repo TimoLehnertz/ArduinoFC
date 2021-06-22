@@ -92,7 +92,7 @@ double Quaternion::lengthSquared() const {
 EulerRotation Quaternion::toEulerZYX() const {
     double t0 = 2.0 * (w * x + y * z);
     double t1 = 1.0 - 2.0 * (x * x + y * y);
-    double roll = atan2(t0, t1);
+    double roll = atan2(t0, t1);//
 
     double t2 = 2.0 * (w * y - z * x);
     t2 = t2 > 1.0 ? 1.0 : t2;
