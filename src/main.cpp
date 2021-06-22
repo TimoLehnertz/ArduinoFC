@@ -81,7 +81,7 @@ void loop() {
     if(c == '\n') {
       buffer[bufferCount] = 0;
       processSerialLine();
-      bufferCount = 0;//
+      bufferCount = 0;//ss
       return;
     } else {
       buffer[bufferCount] = c;
