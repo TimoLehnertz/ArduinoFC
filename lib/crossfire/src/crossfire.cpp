@@ -113,6 +113,7 @@ uint8_t Crossfire::crsfFrameCRC(CRSF_Frame_t &frame) {
 // }
 
 void Crossfire::begin() {
+    Serial.println("starting crossfire");
     sendBatteryInfo();
     uart.begin(CRSF_BAUDRATE);
 }
