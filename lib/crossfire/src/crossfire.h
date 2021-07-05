@@ -138,6 +138,7 @@ private:
 
     /**
      * GPS stats
+     * 
      **/
     int32_t gpsLat = 1000;
     int32_t gpsLng = 1000;
