@@ -28,7 +28,7 @@ void Crossfire::loop() {
         if (crsfFramePosition >= fullFrameLength) {
             const uint8_t crc = crsfFrameCRC(crsfFrame);
             if (crc != crsfFrame.bytes[fullFrameLength - 1]) {
-                Serial.println("CRSF crc missmatch!");
+                // Serial.println("CRSF crc missmatch! ");//Serial.print(crc); Serial.print(", got: "); Serial.println(crsfFrame.bytes[fullFrameLength - 1]);
                 continue;
             }
             switch (crsfFrame.frame.type) {
@@ -48,13 +48,13 @@ void Crossfire::handleCrsfFrame(CRSF_Frame_t& frame, int payloadLength) {
     chanels = frameToChanels(frame, payloadLength);
 
     #ifdef CRSF_DEBUG //print out each frame
-    // Serial.print("received frame of type: "); Serial.print(frame.frame.type);
-    // Serial.print(", length: "); Serial.print(frame.frame.frameLength);
-    // Serial.print(" chanels: ");
-    // for (int i = 0; i < MAX_CHANEL_COUNT; i++) {
-    //     Serial.print(chanels.chanels[i]); Serial.print(",");
-    // }
-    // Serial.println();
+    Serial.print("received frame of type: "); Serial.print(frame.frame.type);
+    Serial.print(", length: "); Serial.print(frame.frame.frameLength);
+    Serial.print(" chanels: ");
+    for (int i = 0; i < MAX_CHANEL_COUNT; i++) {
+        Serial.print(chanels.chanels[i]); Serial.print(",");
+    }
+    Serial.println();
     #endif
     /**
      * Telemetry
@@ -66,8 +66,8 @@ void Crossfire::handleCrsfFrame(CRSF_Frame_t& frame, int payloadLength) {
         // printFrame(frame);
         // if(fmQued) {
             // sendFlightMode();
-            // sendBatteryInfo();
-            sendGpsFrame();
+            sendBatteryInfo();
+            // sendGpsFrame();
         // }
     }
 }
@@ -182,7 +182,7 @@ void Crossfire::sendBatteryInfo() {
     frame.frame.payload[8] = crsfFrameCRC(frame);
     sendFrame(frame);
     #ifdef CRSF_DEBUG
-    printFrame(frame);
+    // printFrame(frame);
     #endif
 }
 
@@ -244,4 +244,26 @@ void Crossfire::printFrame(CRSF_Frame_t &frame) {
         Serial.println("CRC MISSMATCH!");
     }
     Serial.println("------");
+}
+
+CRSF_TxChanels_Converted Crossfire::getChanelsCoverted() {
+    CRSF_TxChanels_Converted conv;
+    conv.roll = map(chanels.labels.roll, 172.0, 1809.0, -1.0, 1.0);
+    conv.pitch = map(chanels.labels.pitch, 172.0, 1809.0, -1.0, 1.0);
+    conv.throttle = map((double) chanels.labels.throttle, 172.0, 1809.0, 0.0, 1.0);//Serial.print("throttle: "); Serial.println(chanels.labels.throttle);
+    conv.yaw = map(chanels.labels.yaw, 172.0, 1809.0, -1.0, 1.0);
+    conv.armed1 = chanels.labels.armed1 > 1800;
+    conv.armed2 = chanels.labels.armed2 > 1800;
+    conv.armed3 = conv.armed1 && conv.armed2;
+    return conv;
+}
+
+double Crossfire::map(double x, double in_min, double in_max, double out_min, double out_max) {
+    // const double dividend = out_max - out_min;
+    // const double divisor = in_max - in_min;
+    // const double delta = x - in_min;
+
+    // return (delta * dividend + (divisor / 2)) / divisor + out_min;
+    return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+
 }

@@ -1,7 +1,8 @@
 #include <Arduino.h>
 // #include "crsf.h"
-// #include <Servo.h>
+#include <Servo.h>
 #include <crossfire.h>
+// #include <SoftwareSerial.h>
 
 // #include <Arduino_LSM9DS1.h>
 
@@ -181,15 +182,29 @@
 //   Serial.println(body);
 // }
 
-// Servo ESC;
+Servo ESC1;
+Servo ESC2;
+Servo ESC3;
+Servo ESC4;
 
-Crossfire crsf(Serial1);
+Crossfire crsf(4,5);
+
+// UART uart(2,2,0,0);
+
+// SoftwareSerial s(4,5);
+
+int throttleMin = 10;
+int throttleMax = 180; //ppm values
 
 void setup() {
-  // Serial1.begin(420000);
-  // Serial.begin(115200);
-  // ESC.attach(9, 1000, 2000);
+  Serial.begin(115200);
+  Serial.println("moin");
   crsf.begin();
+  // ESC1.attach(2, 1000, 2000);
+  ESC1.attach(14, 1000, 2000);
+  ESC2.attach(12, 1000, 2000);
+  ESC3.attach(13, 1000, 2000);
+  ESC4.attach(15, 1000, 2000);
 }
 
 void loop() {
@@ -204,4 +219,62 @@ void loop() {
   //   // }
   // }
   crsf.loop();
+
+  CRSF_TxChanels_Converted chanels = crsf.getChanelsCoverted();
+
+  double pitchRate = 0.2;
+  double yawRate = 0.2;
+  double rollRate = 0.2;
+
+  double throttle = crsf.map(chanels.throttle, 0, 1, throttleMin, throttleMax);
+
+  double fl = throttle;
+  double fr = throttle;
+  double bl = throttle;
+  double br = throttle;
+
+  //pitch
+  fl -= pitchRate * chanels.pitch;
+  fr -= pitchRate * chanels.pitch;
+  bl += pitchRate * chanels.pitch;
+  br += pitchRate * chanels.pitch;
+
+  //roll
+  fl += rollRate * chanels.roll;
+  fr -= rollRate * chanels.roll;
+  bl += rollRate * chanels.roll;
+  br -= rollRate * chanels.roll;
+
+  //yaw
+  fl += yawRate * chanels.yaw;
+  fr -= yawRate * chanels.yaw;
+  bl -= yawRate * chanels.yaw;
+  br += yawRate * chanels.yaw;
+
+  fl = crsf.map(fl, 0, 1, 0, 180);
+  fr = crsf.map(fr, 0, 1, 0, 180);
+  bl = crsf.map(bl, 0, 1, 0, 180);
+  br = crsf.map(br, 0, 1, 0, 180);
+
+  if(!chanels.armed3) {
+    fl = 0;
+    fr = 0;
+    bl = 0;
+    br = 0;
+  }
+
+  // Serial.println("---------");
+  // Serial.print(fl);
+  // Serial.print("  ");
+  // Serial.println(fr);
+  // Serial.print(bl);
+  // Serial.print("  ");
+  // Serial.println(br);
+  // Serial.println("---------");
+  // delay(10);
+
+  ESC1.write(fl);
+  ESC2.write(fr);
+  ESC3.write(bl);
+  ESC4.write(br);
 }
