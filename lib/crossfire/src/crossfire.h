@@ -1,9 +1,10 @@
 #pragma once
 #include <Arduino.h>
 
-#ifndef ARDUINO_AS_MBED_LIBRARY
-#include <SoftwareSerial.h>
-#endif
+// #ifndef ARDUINO_AS_MBED_LIBRARY
+// #include <SoftwareSerial.h>
+// #endif
+#include <HardwareSerial.h> //esp32
 
 typedef uint32_t timeUs_t;
 // typedef uint64_t timeUs_t;
@@ -39,6 +40,7 @@ typedef int32_t timeDelta_t;
 #define crc8_dvb_s2(crc, a) crc8_calc(crc, a, 0xD5)
 
 #define CRSF_BAUDRATE 420000
+// #define CRSF_BAUDRATE 416000
 
 #define CRSF_SYNC_BYTE 0xC8
 
@@ -49,7 +51,10 @@ typedef int32_t timeDelta_t;
 
 #define CRSF_FRAME_BATTERY_SENSOR_PAYLOAD_SIZE 8
 #define CRSF_FRAME_GPS_PAYLOAD_SIZE 15
+
 // #define CRSF_DEBUG
+
+#define CRSF_FAILSAFE_TIMEOUT_US 100000 //100ms
 
 static inline timeDelta_t cmpTimeUs(timeUs_t a, timeUs_t b) { return (timeDelta_t)(a - b); }
 
@@ -60,6 +65,12 @@ struct CRSF_TxChanels_Labels {
     uint16_t yaw;
     uint16_t armed1;
     uint16_t armed2;
+    uint16_t chanel7;
+    uint16_t chanel8;
+    uint16_t chanel9;
+    uint16_t chanel10;
+    uint16_t chanel11;
+    uint16_t chanel12;
 };
 
 struct CRSF_TxChanels_Converted {
@@ -70,11 +81,26 @@ struct CRSF_TxChanels_Converted {
     bool armed1;
     bool armed2;
     bool armed3; //true when both 1 and 2 are true 
+    double chanel7;
+    double chanel8;
+    double chanel9;
+    double chanel10;
+    double chanel11;
+    double chanel12;
 };
 
 union CRSF_TxChanels {
     uint16_t chanels[MAX_CHANEL_COUNT];
     CRSF_TxChanels_Labels labels;
+
+    // CRSF_TxChanels() {
+    //     labels.roll = 0;
+    //     labels.pitch = 0;
+    //     labels.throttle = 0;
+    //     labels.yaw = 0;
+    //     labels.armed1 = false;
+    //     labels.armed2 = false;
+    // }
 };
 
 struct CRSF_FrameDef_t {
@@ -92,20 +118,32 @@ union CRSF_Frame_t {
 class Crossfire {
 public:
 
+    bool firstFrameReceived = false;
     CRSF_TxChanels chanels; //always set to the latest received chanels
+    // for (size_t i = 0; i < MAX_CHANEL_COUNT; i++) {
+    //     chanels.chanels[i] = 0;
+    // }
+    
 
     #ifdef ARDUINO_AS_MBED_LIBRARY
     Crossfire(UART uart) : uart(uart) {}
     #else
-    Crossfire(int rx, int tx) : uart(rx, tx) {}
+    // Crossfire(int rx, int tx) : uart(rx, tx) {}
+    Crossfire(HardwareSerial h) : uart(h) {}
     #endif
 
     // states
     void begin();
-    void loop();
+    void handle();
     void end();
 
     CRSF_TxChanels_Converted getChanelsCoverted();
+
+    /**
+     * Failsafe
+     **/
+    bool isFailsafe();
+
 
     /**
      * telemetry
@@ -117,7 +155,7 @@ private:
     #ifdef ARDUINO_AS_MBED_LIBRARY
     UART uart; //uart with wich the receiver is connected
     #else
-    SoftwareSerial uart;
+    HardwareSerial uart;
     #endif
     CRSF_Frame_t crsfFrame;
     byte payloadLength = 0;
@@ -138,6 +176,13 @@ private:
     void writeU16BigEndian(uint8_t *dst, uint16_t val);
 
     void printFrame(CRSF_Frame_t &frame);
+
+    /**
+     * Failsafe
+     * has to be set to cut on rx
+     **/
+    timeUs_t lastRcFrame = 0;
+
 
     /**
      * Telemetry

@@ -1,9 +1,13 @@
 #include <Arduino.h>
 #include "crossfire.h"
 
-void Crossfire::loop() {
-    while(uart.available()) {
-        char c = uart.read();
+void Crossfire::handle() {
+    // Serial.println("handle start");
+    while(Serial1.available()) {
+        // Serial.println("available start");
+        char c = Serial1.read();
+        // Serial.println("after read");
+        // Serial.write(c);
 
         static uint8_t crsfFramePosition = 0;
 
@@ -28,7 +32,7 @@ void Crossfire::loop() {
         if (crsfFramePosition >= fullFrameLength) {
             const uint8_t crc = crsfFrameCRC(crsfFrame);
             if (crc != crsfFrame.bytes[fullFrameLength - 1]) {
-                // Serial.println("CRSF crc missmatch! ");//Serial.print(crc); Serial.print(", got: "); Serial.println(crsfFrame.bytes[fullFrameLength - 1]);
+                Serial.println("CRSF crc missmatch! ");//Serial.print(crc); Serial.print(", got: "); Serial.println(crsfFrame.bytes[fullFrameLength - 1]);
                 continue;
             }
             switch (crsfFrame.frame.type) {
@@ -42,9 +46,16 @@ void Crossfire::loop() {
             crsfFramePosition = 0;
         }
     }
+    // Serial.println("handle end");
+}
+
+bool Crossfire::isFailsafe() {
+    return micros() - lastRcFrame > CRSF_FAILSAFE_TIMEOUT_US;
 }
 
 void Crossfire::handleCrsfFrame(CRSF_Frame_t& frame, int payloadLength) {
+    lastRcFrame = micros();
+    firstFrameReceived = true;
     chanels = frameToChanels(frame, payloadLength);
 
     #ifdef CRSF_DEBUG //print out each frame
@@ -74,7 +85,8 @@ void Crossfire::handleCrsfFrame(CRSF_Frame_t& frame, int payloadLength) {
 
 CRSF_TxChanels Crossfire::frameToChanels(CRSF_Frame_t& frame, int payloadLength) {
     CRSF_TxChanels chanels;
-    uint8_t numOfChannels = ((frame.frame.frameLength - CRSF_FRAME_LENGTH_TYPE_CRC) * 8 - CRSF_SUBSET_RC_STARTING_CHANNEL_BITS) / CHANEL_BITS;
+    // uint8_t numOfChannels = ((frame.frame.frameLength - CRSF_FRAME_LENGTH_TYPE_CRC) * 8 - CRSF_SUBSET_RC_STARTING_CHANNEL_BITS) / CHANEL_BITS;
+    uint8_t numOfChannels = 12;
     uint8_t bitsMerged = 0;
     uint32_t readValue = 0;
     uint8_t readByteIndex = 0;
@@ -114,7 +126,7 @@ uint8_t Crossfire::crsfFrameCRC(CRSF_Frame_t &frame) {
 
 void Crossfire::begin() {
     Serial.println("starting crossfire");
-    sendBatteryInfo();
+    // uart.begin(9600);
     uart.begin(CRSF_BAUDRATE);
 }
 
@@ -224,6 +236,8 @@ void Crossfire::writeU16BigEndian(uint8_t *dst, uint16_t val) {
 
 void Crossfire::sendFrame(CRSF_Frame_t &frame) {
     const int fullFrameLength = frame.frame.frameLength + CRSF_FRAME_LENGTH_ADDRESS + CRSF_FRAME_LENGTH_FRAMELENGTH;
+    // Serial.println(fullFrameLength);
+    return; // write crashes on teensy
     uart.write(frame.bytes, fullFrameLength);
 }
 
@@ -248,13 +262,35 @@ void Crossfire::printFrame(CRSF_Frame_t &frame) {
 
 CRSF_TxChanels_Converted Crossfire::getChanelsCoverted() {
     CRSF_TxChanels_Converted conv;
-    conv.roll = map(chanels.labels.roll, 172.0, 1809.0, -1.0, 1.0);
-    conv.pitch = map(chanels.labels.pitch, 172.0, 1809.0, -1.0, 1.0);
-    conv.throttle = map((double) chanels.labels.throttle, 172.0, 1809.0, 0.0, 1.0);//Serial.print("throttle: "); Serial.println(chanels.labels.throttle);
-    conv.yaw = map(chanels.labels.yaw, 172.0, 1809.0, -1.0, 1.0);
-    conv.armed1 = chanels.labels.armed1 > 1800;
-    conv.armed2 = chanels.labels.armed2 > 1800;
-    conv.armed3 = conv.armed1 && conv.armed2;
+    if(!firstFrameReceived) { //default values
+        conv.roll       = 0;
+        conv.pitch      = 0;
+        conv.throttle   = 0;
+        conv.yaw        = 0;
+        conv.armed1     = 0;
+        conv.armed2     = 0;
+        conv.armed3     = 0;
+        conv.chanel7    = 0;
+        conv.chanel8    = 0;
+        conv.chanel9    = 0;
+        conv.chanel10   = 0;
+        conv.chanel11   = 0;
+        conv.chanel12   = 0;
+    } else {
+        conv.roll = map(chanels.labels.roll, 172.0, 1809.0, -1.0, 1.0);
+        conv.pitch = map(chanels.labels.pitch, 172.0, 1809.0, -1.0, 1.0);
+        conv.throttle = map((double) chanels.labels.throttle, 172.0, 1809.0, 0.0, 1.0);//Serial.print("throttle: "); Serial.println(chanels.labels.throttle);
+        conv.yaw = map(chanels.labels.yaw, 172.0, 1809.0, -1.0, 1.0);
+        conv.armed1 = chanels.labels.armed1 > 1800;
+        conv.armed2 = chanels.labels.armed2 > 1800;
+        conv.armed3 = conv.armed1 && conv.armed2;
+        conv.chanel7    = map(chanels.labels.chanel7, 172.0, 1809.0, -1, 1);
+        conv.chanel8    = map(chanels.labels.chanel8, 172.0, 1809.0, -1, 1);
+        conv.chanel9    = map(chanels.labels.chanel9, 172.0, 1809.0, -1, 1);
+        conv.chanel10   = map(chanels.labels.chanel10, 172.0, 1809.0, -1, 1);
+        conv.chanel11   = map(chanels.labels.chanel11, 172.0, 1809.0, -1, 1);
+        conv.chanel12   = map(chanels.labels.chanel12, 172.0, 1809.0, -1, 1);
+    }
     return conv;
 }
 

@@ -1,22 +1,19 @@
-#ifndef INS
-#define INS_DEF
-
-#define INS_DEBUG
+#pragma once
 
 #include <maths.h>
+#include <sensorInterface.h>
 
 class INS {
 public:
+
+    INS(SensorInterface &sensors) : sensors(sensors) {}
 
     void updateAcc(double, double, double);
     void updateGyro(double, double, double);
     void updateMag(double, double, double);
 
-//  Getters
-    Vec3 getPosition() const;
-    Vec3 getVelocity() const;
-    EulerRotation getEulerRotationZYX() const;
-    Quaternion getQuaternionRotation() const;
+    void handle();
+
 
 //  Calibration
     void requestCalibration();
@@ -28,7 +25,22 @@ public:
     void calibrateGyro(bool = true);
     void calibrateMag(bool = true);
 
+//  Getters
+    double getRoll();
+    double getRollRate();
+    double getPitch();
+    double getPitchRate();
+    double getYaw();
+    double getYawRate();
+    long getReadingVersion();
+    Vec3 getPosition() const;
+    Vec3 getVelocity() const;
+    EulerRotation getEulerRotationZYX() const;
+    Quaternion getQuaternionRotation() const;
+
 private:
+    SensorInterface& sensors;
+    long readingVersion = 0; //counter that gets incremented everytime a an update occours
 //  Processing
     void processFilteredAcc(const Vec3&);
     void processFilteredGyro(const Vec3&);
@@ -37,7 +49,7 @@ private:
 //  Calibration
     Vec3 accMul  {Vec3(1,1,1)};
     Vec3 magMul  {Vec3(1,1,1)};
-    Vec3 gyroMul {Vec3(-1,-1,-1)};
+    Vec3 gyroMul {Vec3(1,1,1)};
     bool accCalibrationInQue  = false;
     bool gyroCalibrationInQue = false;
     bool magCalibrationInQue  = false;
@@ -86,5 +98,3 @@ private:
 		return now * smoothing + prevFiltered * (1 - smoothing);
 	}
 };
-
-#endif

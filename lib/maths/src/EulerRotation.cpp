@@ -44,3 +44,15 @@ void EulerRotation::rotate(Vec3 &v) const {
 void EulerRotation::rotateReverse(Vec3 &v) const {
     v = getMatrix().getTranspose() * v;
 }
+
+double EulerRotation::getPitch() {
+    return y;
+}
+
+double EulerRotation::getRoll() {
+    return x;
+}
+
+double EulerRotation::getYaw() {
+    return z;
+}

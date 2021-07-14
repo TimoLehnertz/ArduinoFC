@@ -15,6 +15,21 @@ Vec3 const INS::getGyroOffset() const {
     return gyroOffset;
 }
 
+void INS::handle() {
+    if(sensors.accChanged) {
+        // updateAcc(sensors.accX, sensors.accY, sensors.accZ);
+        sensors.accChanged = false;
+    }
+    if(sensors.gyroChanged) {
+        updateGyro(sensors.gyroX, sensors.gyroY, sensors.gyroZ);
+        sensors.gyroChanged = false;
+    }
+    if(sensors.magChanged) {
+        updateMag(sensors.magX, sensors.magY, sensors.magZ);
+        sensors.magChanged = false;
+    }
+}
+
 void INS::updateAcc(double x, double y, double z) {
     lastRawAccs[lastRawAccCount] = Vec3(x, y, z);
     if(lastRawAccCount + 1 == saveCounts) {
@@ -28,6 +43,10 @@ void INS::updateAcc(double x, double y, double z) {
     processFilteredAcc(lastFilteredAcc);
 
     if(accBufferFull && accCalibrationInQue) calibrateAcc();
+}
+
+void INS::updateMag(double x, double y, double z) {
+    
 }
 
 void INS::updateGyro(double x, double y, double z) {
@@ -64,18 +83,21 @@ void INS::processFilteredAcc(const Vec3 &acc) {
         double limitG = 0.2;
         // pitch = rot.toEulerZYX().y;
         if(len > 1 - limitG && len < 1 + limitG && pitch > -limitRad && pitch < limitRad) {
-            rot = Quaternion::lerp(accRot, rot, 0.95); // 5% confidence
+            rot = Quaternion::lerp(accRot, rot, 0.99); // 5% confidence
+            // rot = Quaternion::lerp(accRot, rot, 0.95); // 5% confidence
         } else {
-            Serial.print(len);
-            Serial.println(" | no acc");
+            // Serial.print(len);
+            // Serial.println(" | no acc");
         }
     }
+    readingVersion++;
     //velocity
 
     //position
 }
 
 void INS::processFilteredGyro(const Vec3 &gyro) {
+    // Serial.println(gyro.z);
     const unsigned long now = millis();
     if(lastGyroTime == 0 ) {
         lastGyroTime = now;
@@ -92,6 +114,7 @@ void INS::processFilteredGyro(const Vec3 &gyro) {
     Quaternion localRotQ(localRotEuler);
     rot.normalize();
     rot *= localRotQ;
+    readingVersion++;
 }
 
 
@@ -108,7 +131,7 @@ void INS::calibrateAcc(bool retry) {
         i = (i + 1) % saveCounts;
         sum += lastRawAccs[i];
     } while(i != lastRawAccCount);
-    Vec3 avg = sum / saveCounts;
+    Vec3 avg = sum / (double) saveCounts;
     //testing succsess
     const double maxOff = 0.3;
     Vec3 offset = Vec3(0, 0, 1) - avg; //offset from target
@@ -136,7 +159,7 @@ void INS::calibrateGyro(bool retry) {
         i = (i + 1) % saveCounts;
         sum += lastRawGyros[i];
     } while(i != lastRawGyroCount);
-    Vec3 avg = sum / saveCounts;
+    Vec3 avg = sum / (double) saveCounts;
     //testing succsess
     const double maxOff = 5;
     Vec3 offset = Vec3(0, 0, 0) - avg; //offset from target
@@ -178,4 +201,32 @@ EulerRotation INS::getEulerRotationZYX() const {
 
 Quaternion INS::getQuaternionRotation() const {
     return rot;
+}
+
+double INS::getPitch() {
+    return rot.toEulerZYX().getPitch();
+}
+
+double INS::getRoll() {
+    return rot.toEulerZYX().getRoll();
+}
+
+double INS::getYaw() {
+    return rot.toEulerZYX().getYaw();
+}
+
+double INS::getPitchRate() {
+    return lastFilteredGyro.y;
+}
+
+double INS::getRollRate() {
+    return lastFilteredGyro.x;
+}
+
+double INS::getYawRate() {
+    return lastFilteredGyro.z;
+}
+
+long INS::getReadingVersion() {
+    return readingVersion;
 }

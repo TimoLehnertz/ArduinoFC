@@ -1,14 +1,9 @@
-#ifndef MATHS
-#define MATHS
-
+#pragma once
 #include <Arduino.h>
 
 class Vec3;
 class Quaternion;
 
-// double toDeg(double rad) {
-//     return rad * 57296 / 1000;
-// }
 
 class Matrix3 {
 public:
@@ -156,6 +151,10 @@ public:
 
     operator Matrix3() const;
 
+    double getPitch();
+    double getRoll();
+    double getYaw();
+
     String toString() const {
         return String("Euler (deg) (x=") + x * 57296 / 1000 + String(",y=") + y * 57296 / 1000 + String(",z=") + z * 57296 / 1000 + String(")");
     }
@@ -204,7 +203,7 @@ public:
     Quaternion operator + (const Quaternion&) const;
 
     static Quaternion lerp(const Quaternion &q1, const Quaternion q2, double t) {
-        t = max(0, min(1, t));
+        t = max(0.0, min(1.0, t));
         return (q1.clone() * (1 - t) + q2.clone() * t).normalize();
     }
 
@@ -212,4 +211,3 @@ public:
         return String("(w=") + w + String(",x=") + x + String(",y=") + y + String(",z=") + z + String(")");
     }
 };
-#endif
