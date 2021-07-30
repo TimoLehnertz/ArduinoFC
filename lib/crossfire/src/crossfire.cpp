@@ -1,11 +1,12 @@
 #include <Arduino.h>
 #include "crossfire.h"
+// #include "../../src/setup.h"
 
 void Crossfire::handle() {
     // Serial.println("handle start");
-    while(Serial1.available()) {
+    while(uart->available()) {
         // Serial.println("available start");
-        char c = Serial1.read();
+        char c = uart->read();
         // Serial.println("after read");
         // Serial.write(c);
 
@@ -127,11 +128,11 @@ uint8_t Crossfire::crsfFrameCRC(CRSF_Frame_t &frame) {
 void Crossfire::begin() {
     Serial.println("starting crossfire");
     // uart.begin(9600);
-    uart.begin(CRSF_BAUDRATE);
+    uart->begin(CRSF_BAUDRATE);
 }
 
 void Crossfire::end() {
-    uart.end();
+    uart->end();
 }
 
 uint8_t Crossfire::crc8_calc(uint8_t crc, unsigned char a, uint8_t poly) {
@@ -174,6 +175,13 @@ void Crossfire::sendFlightMode() {
 
 // <Device address><Frame length><Type><Payload><CRC>
 void Crossfire::sendBatteryInfo() {
+    float pinVolt = analogRead(16) / 1024.0 * 3.3; //actual volts at pin
+    float batVolt = pinVolt * 18.1f; //actual volts at pin
+
+    batAvgCellVoltage = batVolt * 10; //crsf scaling
+
+
+    // batAvgCellVoltage = analogRead(16) * 10.0;
     CRSF_Frame_t frame;
     frame.frame.deviceAddress = CRSF_SYNC_BYTE;
     frame.frame.type = CRSF_FRAMETYPE_BATTERY_SENSOR;
@@ -185,9 +193,9 @@ void Crossfire::sendBatteryInfo() {
     frame.frame.payload[2] = batCurrent >> 8;
     frame.frame.payload[3] = (uint8_t) batCurrent;
     //fuel
-    frame.frame.payload[4] = batFuel >> 16;
-    frame.frame.payload[5] = batFuel >> 8;
-    frame.frame.payload[6] = (uint8_t) batFuel;
+    frame.frame.payload[4] = mahDraw >> 16;
+    frame.frame.payload[5] = mahDraw >> 8;
+    frame.frame.payload[6] = (uint8_t) mahDraw;
     //remaining percent
     frame.frame.payload[7] = batRemainingPercentage;
     // frame.frame.payload[8] = crsfFrameCRCTelemetry(frame, CRSF_FRAME_BATTERY_SENSOR_PAYLOAD_SIZE);
@@ -237,8 +245,8 @@ void Crossfire::writeU16BigEndian(uint8_t *dst, uint16_t val) {
 void Crossfire::sendFrame(CRSF_Frame_t &frame) {
     const int fullFrameLength = frame.frame.frameLength + CRSF_FRAME_LENGTH_ADDRESS + CRSF_FRAME_LENGTH_FRAMELENGTH;
     // Serial.println(fullFrameLength);
-    return; // write crashes on teensy
-    uart.write(frame.bytes, fullFrameLength);
+    // return; // write crashes on teensy
+    uart->write(frame.bytes, fullFrameLength);
 }
 
 void Crossfire::printFrame(CRSF_Frame_t &frame) {

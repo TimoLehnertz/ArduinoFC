@@ -126,7 +126,7 @@ private:
 
         if(count % 50 == 0) {
             // Serial.printf("%ihz, roll rc: %f, roll: %f, pitch rc: %f, pitch: %f, yaw rc: %f, yawRate: %f throttle: %f\n", hz, chanels.roll, roll, chanels.pitch, pitch, chanels.yaw, yawRate, chanels.throttle);
-            Serial.printf("rollRateAdjust: %f, pitchRateAdjust: %f, yawRateAdjust: %f\n", rollRateAdjust * 100, pitchRateAdjust * 100, yawRateAdjust * 100);
+            // Serial.printf("rollRateAdjust: %f, pitchRateAdjust: %f, yawRateAdjust: %f\n", rollRateAdjust * 100, pitchRateAdjust * 100, yawRateAdjust * 100);
         }
 
         // rollRateAdjust  /= 360 * 1; //convert degrees to motor value from 0 to 1

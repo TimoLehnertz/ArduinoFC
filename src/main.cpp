@@ -27,21 +27,22 @@ void setup() {
   crsf.begin(); //start Crossfire
   sensors.begin();
   flightController.begin();
+  pinMode(ANALOG_BAT_VOLTAGE, INPUT);
 }
 
 void loop() {
   crsf.handle(); //handle remote controll comunication
-  if(crsf.isFailsafe()) {
-    flightController.startFailsafe();
-  } else {
-    flightController.stopFailsafe();
-  }
+  // if(crsf.isFailsafe()) {
+  //   flightController.startFailsafe();
+  // } else {
+  //   flightController.stopFailsafe();
+  // }
 
-  sensors.handle();
-  ins.handle();
+  // sensors.handle();
+  // ins.handle();
 
-  CRSF_TxChanels_Converted chanels = crsf.getChanelsCoverted();
-  flightController.updateRcChanels(chanels);
+  // CRSF_TxChanels_Converted chanels = crsf.getChanelsCoverted();
+  // flightController.updateRcChanels(chanels);
 
-  flightController.handle(); //also handles motors
+  // flightController.handle(); //also handles motors
 }

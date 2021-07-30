@@ -52,7 +52,7 @@ typedef int32_t timeDelta_t;
 #define CRSF_FRAME_BATTERY_SENSOR_PAYLOAD_SIZE 8
 #define CRSF_FRAME_GPS_PAYLOAD_SIZE 15
 
-// #define CRSF_DEBUG
+#define CRSF_DEBUG
 
 #define CRSF_FAILSAFE_TIMEOUT_US 100000 //100ms
 
@@ -129,7 +129,7 @@ public:
     Crossfire(UART uart) : uart(uart) {}
     #else
     // Crossfire(int rx, int tx) : uart(rx, tx) {}
-    Crossfire(HardwareSerial h) : uart(h) {}
+    Crossfire(HardwareSerial *h) : uart(h) {}
     #endif
 
     // states
@@ -155,7 +155,7 @@ private:
     #ifdef ARDUINO_AS_MBED_LIBRARY
     UART uart; //uart with wich the receiver is connected
     #else
-    HardwareSerial uart;
+    HardwareSerial* uart;
     #endif
     CRSF_Frame_t crsfFrame;
     byte payloadLength = 0;
@@ -199,10 +199,10 @@ private:
     /**
      * Battery stats
      **/
-    uint16_t batAvgCellVoltage = 65535;
-    uint16_t batCurrent = 65535;
-    uint32_t  batFuel = 16777215;
-    uint8_t  batRemainingPercentage = 69;
+    uint16_t batAvgCellVoltage = 42; //42 = 4.2Volts
+    uint16_t batCurrent = 10; //10 = 1Ampere
+    uint32_t  mahDraw = 100;
+    uint8_t  batRemainingPercentage = 66;
 
     /**
      * GPS stats
