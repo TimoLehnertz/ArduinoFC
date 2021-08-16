@@ -33,7 +33,7 @@ void setup() {
   crsf.begin(); //start Crossfire
   sensors.begin();
   flightController.begin();
-  
+
 
   // testServo.attach(5, 1000, 2000);
 }
@@ -48,6 +48,7 @@ void loop() {
   } else {
     flightController.stopFailsafe();
   }
+  
 
   CRSF_TxChanels_Converted chanels = crsf.getChanelsCoverted();
   flightController.updateRcChanels(chanels);
