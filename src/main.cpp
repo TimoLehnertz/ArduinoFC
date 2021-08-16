@@ -33,6 +33,7 @@ void setup() {
   crsf.begin(); //start Crossfire
   sensors.begin();
   flightController.begin();
+  
 
   // testServo.attach(5, 1000, 2000);
 }
