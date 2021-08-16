@@ -25,7 +25,6 @@ void Motor::endPWM() {
 
 void Motor::arm() {
     if(armed || firstWriteAfterArm) return;
-    // Serial.println("arming");
     armTime = millis();
     firstWriteAfterArm = true;
     switch(protocol) {

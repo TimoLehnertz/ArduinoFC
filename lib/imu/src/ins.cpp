@@ -16,17 +16,26 @@ Vec3 const INS::getGyroOffset() const {
 }
 
 void INS::handle() {
-    if(sensors.accChanged) {
-        // updateAcc(sensors.accX, sensors.accY, sensors.accZ);
-        sensors.accChanged = false;
+    /**
+     * Accelerometer
+     */
+    if(sensors->acc.lastChange != lastAccTime) {
+        updateAcc(sensors->acc.x, sensors->acc.y, sensors->acc.z);
+        lastAccTime = sensors->acc.lastChange;
     }
-    if(sensors.gyroChanged) {
-        updateGyro(sensors.gyroX, sensors.gyroY, sensors.gyroZ);
-        sensors.gyroChanged = false;
+    /**
+     * Gyroscope
+     */
+    if(sensors->gyro.lastChange != lastGyroTime) {
+        updateGyro(sensors->gyro.x, sensors->gyro.y, sensors->gyro.z);
+        lastGyroTime = sensors->gyro.lastChange;
     }
-    if(sensors.magChanged) {
-        updateMag(sensors.magX, sensors.magY, sensors.magZ);
-        sensors.magChanged = false;
+    /**
+     * Magnetometer
+     */
+    if(sensors->mag.lastChange != lastMagTime) {
+        updateMag(sensors->mag.x, sensors->mag.y, sensors->mag.z);
+        lastMagTime = sensors->mag.lastChange;
     }
 }
 
@@ -71,6 +80,7 @@ void INS::processFilteredAcc(const Vec3 &acc) {
     // const unsigned long diff = now - lastAccTime;
     // lastAccTime = now;
     //rotation
+    // return;
     if(acc.getLength() < 1.2 && acc.getLength() > 0.8) { //check if movement is too strong
         double roll = atan2(acc.y, acc.z);
         double pitch = atan2(-acc.x, sqrt(acc.y*acc.y + acc.z*acc.z));
@@ -83,7 +93,7 @@ void INS::processFilteredAcc(const Vec3 &acc) {
         double limitG = 0.2;
         // pitch = rot.toEulerZYX().y;
         if(len > 1 - limitG && len < 1 + limitG && pitch > -limitRad && pitch < limitRad) {
-            rot = Quaternion::lerp(accRot, rot, 0.99); // 5% confidence
+            rot = Quaternion::lerp(accRot, rot, 1 - accInfluence); // 5% confidence
             // rot = Quaternion::lerp(accRot, rot, 0.95); // 5% confidence
         } else {
             // Serial.print(len);
@@ -97,26 +107,34 @@ void INS::processFilteredAcc(const Vec3 &acc) {
 }
 
 void INS::processFilteredGyro(const Vec3 &gyro) {
-    // Serial.println(gyro.z);
-    const unsigned long now = millis();
+    const uint64_t now = micros();
     if(lastGyroTime == 0 ) {
         lastGyroTime = now;
         return; //waiting for next measurement
     }
-    const unsigned long diff = now - lastGyroTime;
+    const uint32_t diff = now - lastGyroTime;
     lastGyroTime = now;
+    float elapsedSeconds = diff / 1000000.0f;
+
+    static double degX = 0;
+    degX += gyro.x * elapsedSeconds;
+
     //rotation
-    double elapsedSeconds = diff / 1000.0;
-    // zSum += gyro.z * elapsedSeconds;
-    // xSum += gyro.x * elapsedSeconds;
-    // Serial.println(int(xSum));
+    // gyro.x = 90;
+    // gyro.y = 0;
+    // gyro.z = 0;
     EulerRotation localRotEuler((gyro * elapsedSeconds).toRad(), ZYX_EULER);
     Quaternion localRotQ(localRotEuler);
+    // rot = localRotQ.
     rot.normalize();
     rot *= localRotQ;
     readingVersion++;
 }
 
+
+void INS::reset() {
+    rot.setFromEuler(EulerRotation(0, 0, 0));
+}
 
 void INS::requestCalibration() {
     gyroCalibrationInQue = true;
@@ -129,26 +147,22 @@ void INS::calibrateAcc(bool retry) {
     int i = lastRawAccCount;
     do {
         i = (i + 1) % saveCounts;
-        sum += lastRawAccs[i];
+        sum += lastRawAccs[i] * accMul;
     } while(i != lastRawAccCount);
     Vec3 avg = sum / (double) saveCounts;
     //testing succsess
-    const double maxOff = 0.3;
+    const double maxOff = 10;
     Vec3 offset = Vec3(0, 0, 1) - avg; //offset from target
     const double diff = offset.absSum();
     if(diff < maxOff && diff > -maxOff) {
         accOffset = offset;
         accCalibrationInQue = false;//succeeded
-        #ifdef INS_DEBUG
-        Serial.println(":) succsessfully calibrated acc. Offset is:");
+        Serial.print("Succsessfully calibrated acc :) Offset is: ");
         Serial.println(accOffset.toString());
-        #endif
     } else if(retry){
         accCalibrationInQue = true;
         //not succeeded requesting new attempt
-         #ifdef INS_DEBUG
-        // Serial.println(":( calibrating acc failed. retrying...");
-        #endif
+        Serial.println(":( calibrating acc failed. values where outside the range. retrying...");
     }
 }
 
@@ -161,37 +175,33 @@ void INS::calibrateGyro(bool retry) {
     } while(i != lastRawGyroCount);
     Vec3 avg = sum / (double) saveCounts;
     //testing succsess
-    const double maxOff = 5;
+    const double maxOff = 15;
     Vec3 offset = Vec3(0, 0, 0) - avg; //offset from target
     const double diff = offset.absSum();
     if(diff < maxOff && diff > -maxOff) {
         gyroOffset = offset;
         gyroCalibrationInQue = false;//succeeded
-        #ifdef INS_DEBUG
-        Serial.println(":) succsessfully calibrated gyro. Offset is:");
+        Serial.print("Succsessfully calibrated gyro :) Offset is: ");
         Serial.println(gyroOffset.toString());
-        #endif
     } else if(retry) {
-        #ifdef INS_DEBUG
         Serial.println(":( calibrating gyro failed retrying...");
         Serial.println(diff);
-        #endif
         gyroCalibrationInQue = true;
         //not succeeded requesting new attempt
     }
 }
 
 Vec3 INS::filterAcc(const Vec3 &acc) {
-    Vec3 filtered = acc + accOffset;
-    filtered *= accMul;
+    Vec3 filtered = acc * accMul;
+    filtered += accOffset;
     filtered = lowPassFilter(prevFilteredAcc, filtered, 0.5);
     prevFilteredAcc = filtered.clone();
     return filtered;
 }
 
 Vec3 INS::filterGyro(const Vec3 &gyro) {
-    Vec3 filtered = gyro + gyroOffset;
-    filtered *= gyroMul;
+    Vec3 filtered = gyro * gyroMul;
+    filtered += gyroOffset;
     return filtered;
 }
 

@@ -1,10 +1,8 @@
 #pragma once
 #include <Arduino.h>
 
-// #ifndef ARDUINO_AS_MBED_LIBRARY
-// #include <SoftwareSerial.h>
-// #endif
-#include <HardwareSerial.h> //esp32
+
+// #define CRSF_DEBUG //prints every received frame
 
 typedef uint32_t timeUs_t;
 // typedef uint64_t timeUs_t;
@@ -12,11 +10,12 @@ typedef uint32_t timeUs_t;
 // time difference, 32 bits always sufficient
 typedef int32_t timeDelta_t;
 
+#define CRSF_ADDRESS_FLIGHT_CONTROLLER 0xC8
+
 #define CRSF_FRAME_LENGTH_ADDRESS 1
 #define CRSF_FRAME_LENGTH_FRAMELENGTH 1
 
 #define CRSF_FRAME_LENGTH_TYPE_CRC 2 // length of TYPE and CRC fields combined
-
 
 #define CRSF_TIME_NEEDED_PER_FRAME_US   1100 // 700 ms + 400 ms for potential ad-hoc request
 #define CRSF_TIME_BETWEEN_FRAMES_US     6667 // At fastest, frames are sent by the transmitter every 6.667 milliseconds, 150 Hz
@@ -26,7 +25,6 @@ typedef int32_t timeDelta_t;
 
 #define CRSF_FRAMETYPE_RC_CHANNELS_PACKED 0x16
 #define CRSF_FRAMETYPE_SUBSET_RC_CHANNELS_PACKED 0x17
-
 
 #define MAX_CHANEL_COUNT 12
 #define CHANEL_BITS 11
@@ -40,19 +38,18 @@ typedef int32_t timeDelta_t;
 #define crc8_dvb_s2(crc, a) crc8_calc(crc, a, 0xD5)
 
 #define CRSF_BAUDRATE 420000
-// #define CRSF_BAUDRATE 416000
 
 #define CRSF_SYNC_BYTE 0xC8
 
 #define CRSF_FRAMETYPE_FLIGHT_MODE      0x21
 #define CRSF_FRAMETYPE_BATTERY_SENSOR   0x08
+#define CRSF_FRAMETYPE_ATTITUDE         0x1E
 #define CRSF_FRAMETYPE_GPS              0x02
-// #define CRSF_FRAMETYPE_BATTERY_SENSOR 0x09
 
 #define CRSF_FRAME_BATTERY_SENSOR_PAYLOAD_SIZE 8
+#define CRSF_FRAME_FLIGHT_MODE_PAYLOAD_SIZE 5 //assuming 4 chars
+#define CRSF_FRAME_ATTITUDE_PAYLOAD_SIZE 6
 #define CRSF_FRAME_GPS_PAYLOAD_SIZE 15
-
-#define CRSF_DEBUG
 
 #define CRSF_FAILSAFE_TIMEOUT_US 100000 //100ms
 
@@ -92,15 +89,6 @@ struct CRSF_TxChanels_Converted {
 union CRSF_TxChanels {
     uint16_t chanels[MAX_CHANEL_COUNT];
     CRSF_TxChanels_Labels labels;
-
-    // CRSF_TxChanels() {
-    //     labels.roll = 0;
-    //     labels.pitch = 0;
-    //     labels.throttle = 0;
-    //     labels.yaw = 0;
-    //     labels.armed1 = false;
-    //     labels.armed2 = false;
-    // }
 };
 
 struct CRSF_FrameDef_t {
@@ -118,19 +106,10 @@ union CRSF_Frame_t {
 class Crossfire {
 public:
 
+    Crossfire(HardwareSerial *h) : uart(h) {}
+
     bool firstFrameReceived = false;
     CRSF_TxChanels chanels; //always set to the latest received chanels
-    // for (size_t i = 0; i < MAX_CHANEL_COUNT; i++) {
-    //     chanels.chanels[i] = 0;
-    // }
-    
-
-    #ifdef ARDUINO_AS_MBED_LIBRARY
-    Crossfire(UART uart) : uart(uart) {}
-    #else
-    // Crossfire(int rx, int tx) : uart(rx, tx) {}
-    Crossfire(HardwareSerial *h) : uart(h) {}
-    #endif
 
     // states
     void begin();
@@ -144,19 +123,17 @@ public:
      **/
     bool isFailsafe();
 
-
     /**
-     * telemetry
+     * telemetry updates
      **/
-    void updateTelemetryFlightMode(const char* mode); //null terminated string probably not more than 5 letters
+    void updateTelemetryFlightMode(const char* mode); //char array of length 4
+    void updateTelemetryAttitude(float roll, float pitch, float yaw); 
+    void updateTelemetryGPS(float lat, float lng, float groundSpeed, float heading, float altitude, int satelitesInUse);
+    void updateTelemetryBattery(float vBat, float batCurrent, uint32_t mahDraw, int remainingPercent);
     
     double map(double x, double in_min, double in_max, double out_min, double out_max);
 private:
-    #ifdef ARDUINO_AS_MBED_LIBRARY
-    UART uart; //uart with wich the receiver is connected
-    #else
     HardwareSerial* uart;
-    #endif
     CRSF_Frame_t crsfFrame;
     byte payloadLength = 0;
     byte crsfFramePosition = 0;
@@ -190,8 +167,18 @@ private:
     // 0 -> no telemetry
     // 1 telemetry is send between every received frame
     // 10 -> telemetry is send after every tenth received frame
-    int telemFrequency = 5;
+    int telemFrequency = 1;
     int telemInc = 0;
+
+    bool useBatteryTelem = true;
+    bool useAttitudeTelem = true;
+    bool useGPSTelem = true;
+    bool useFlightMode = true;
+
+    bool telemBatDone = false;
+    bool telemAttitudeDone = false;
+    bool telemGPSDone = false;
+    bool telemFlightModeDone = false;
 
     bool fmQued = false;
     const char* fm = "-";
@@ -199,25 +186,45 @@ private:
     /**
      * Battery stats
      **/
-    uint16_t batAvgCellVoltage = 42; //42 = 4.2Volts
-    uint16_t batCurrent = 10; //10 = 1Ampere
-    uint32_t  mahDraw = 100;
-    uint8_t  batRemainingPercentage = 66;
+    uint16_t batAvgCellVoltage = 0;     // Voltage ( mV * 100 )
+    uint16_t batCurrent = 0;            // Current ( mA * 100 )
+    uint32_t mahDraw = 0;               // Fuel ( drawn mAh )
+    uint8_t  batRemainingPercentage = 0;// Battery remaining ( percent )
+
+    /**
+     * Attitude stats
+     **/
+    uint16_t pitch = 0;                 // Pitch angle ( rad / 10000 )
+    uint16_t roll = 0;                  // Roll angle ( rad / 10000 )
+    uint16_t yaw = 0;                   // Yaw angle ( rad / 10000 )
 
     /**
      * GPS stats
-     * 
      **/
-    int32_t gpsLat = 1000;
-    int32_t gpsLng = 1000;
-    uint16_t groundSpeed = 100;
-    uint16_t gpsHeading = 36500;
-    uint16_t altitude = 1000;
-    uint8_t satelitesInUse = 5;
+    int32_t gpsLat = 508074330;         // Latitude ( degree / 10`000`000 )
+    int32_t gpsLng = 68317330;          // Longitude (degree / 10`000`000 )
+    uint16_t groundSpeed = 0;           // Groundspeed ( km/h / 10 )
+    uint16_t gpsHeading = 0;            // GPS heading ( degree / 100 )
+    uint16_t altitude = 1000;           // Altitude ( meter + 1000 ­)
+    uint8_t satelitesInUse = 0;         // Satellites in use ( counter )
+
+    /**
+     * Flight mode
+     **/
+    const char* flightMode = "(-;>";   //exactly 4 chars
 
     void sendFrame(CRSF_Frame_t &frame);
 
-    void sendFlightMode();
-    void sendBatteryInfo();
-    void sendGpsFrame();
+    /**
+     * Gets called every time after a crsf frame has been received
+     * schedules the battery, gps, attitude and flight mode telemetry functions according to telemFrequency
+     **/
+    void handleTelemetry();
+
+    void sendFlightMode();  //write flight mode to uart
+    void sendBatteryInfo(); //write battery telemetry to uart
+    void sendAttitude();    //write battery telemetry to uart
+    void sendGpsFrame();    //write battery telemetry to uart
+
+    // int constrain1(int amt, int low, int high);
 };

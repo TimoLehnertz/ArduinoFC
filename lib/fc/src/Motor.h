@@ -1,7 +1,6 @@
 #pragma once
 #include <Arduino.h>
 #include <Servo.h>
-// #include <ESP32Servo.h>
 
 enum MotorProtocol {
     PWM
