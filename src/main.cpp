@@ -22,16 +22,21 @@ Comunicator com(&ins);
 Crossfire crsf(CRSF_SERIAL_PORT);
 
 void setup() {
-  delay(2000);
-  com.begin(); //start comunication over serial / usb
-  crsf.begin(); //start Crossfire
-  sensors.begin();
-  flightController.begin();
-  pinMode(ANALOG_BAT_VOLTAGE, INPUT);
+  Serial.begin(115200);
+  // delay(2000);
+  // com.begin(); //start comunication over serial / usb
+  // crsf.begin(); //start Crossfire
+  // sensors.begin();
+  // flightController.begin();
+  // pinMode(ANALOG_BAT_VOLTAGE, INPUT);
+  // pinMode(11, OUTPUT);
 }
 
 void loop() {
-  crsf.handle(); //handle remote controll comunication
+  // digitalWrite(11, millis() % 1000 > 500);
+  Serial.println("moin");
+  delay(100);
+  // crsf.handle(); //handle remote controll comunication
   // if(crsf.isFailsafe()) {
   //   flightController.startFailsafe();
   // } else {
