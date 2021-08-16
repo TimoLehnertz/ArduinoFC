@@ -26,6 +26,7 @@ struct Vec3 {
     double x, y, z;
 
     Vec3();
+    Vec3(char*);
     Vec3(double);
     Vec3(double, double, double);
     Vec3(double[]);

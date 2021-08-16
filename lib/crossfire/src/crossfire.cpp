@@ -3,15 +3,12 @@
 // #include "../../src/setup.h"
 
 void Crossfire::handle() {
-    // Serial.println("handle start");
+    // Serial.println(uart->available());
     while(uart->available()) {
-        // Serial.println("available start");
         char c = uart->read();
-        // Serial.println("after read");
         // Serial.write(c);
 
         static uint8_t crsfFramePosition = 0;
-
         timeUs_t currentTimeUs = micros();
 
         if (cmpTimeUs(currentTimeUs, crsfFrameStartAtUs) > CRSF_TIME_NEEDED_PER_FRAME_US) {
@@ -33,21 +30,20 @@ void Crossfire::handle() {
         if (crsfFramePosition >= fullFrameLength) {
             const uint8_t crc = crsfFrameCRC(crsfFrame);
             if (crc != crsfFrame.bytes[fullFrameLength - 1]) {
-                Serial.println("CRSF crc missmatch! ");//Serial.print(crc); Serial.print(", got: "); Serial.println(crsfFrame.bytes[fullFrameLength - 1]);
+                Serial.println("CRSF crc missmatch! "); //Serial.print(crc); Serial.print(", got: "); Serial.println(crsfFrame.bytes[fullFrameLength - 1]);
                 continue;
             }
             switch (crsfFrame.frame.type) {
             case CRSF_FRAMETYPE_RC_CHANNELS_PACKED:
             case CRSF_FRAMETYPE_SUBSET_RC_CHANNELS_PACKED:
-            // default:
-                // crsfFrame.bytes[crsfFramePosition] = 0;
-                handleCrsfFrame(crsfFrame, crsfFramePosition - 3);
+                if (crsfFrame.frame.deviceAddress == CRSF_ADDRESS_FLIGHT_CONTROLLER) {
+                    handleCrsfFrame(crsfFrame, crsfFramePosition - 3);
+                }
                 break;
             }
             crsfFramePosition = 0;
         }
     }
-    // Serial.println("handle end");
 }
 
 bool Crossfire::isFailsafe() {
@@ -68,19 +64,36 @@ void Crossfire::handleCrsfFrame(CRSF_Frame_t& frame, int payloadLength) {
     }
     Serial.println();
     #endif
+
     /**
      * Telemetry
      **/
+    handleTelemetry();
+}
+
+void Crossfire::handleTelemetry() {
     if(telemFrequency <= 0) return;
     telemInc++;
     if(telemInc >= telemFrequency) {
-        telemInc = 0;
-        // printFrame(frame);
-        // if(fmQued) {
-            // sendFlightMode();
+        if(!telemBatDone && useBatteryTelem) {
             sendBatteryInfo();
-            // sendGpsFrame();
-        // }
+            telemBatDone = true;
+        } else if(!telemAttitudeDone && useAttitudeTelem) {
+            sendAttitude();
+            telemAttitudeDone = true;
+        } else if(!telemGPSDone && useGPSTelem) {
+            sendGpsFrame();
+            telemGPSDone = true;
+        } else if(!telemFlightModeDone && useFlightMode) {
+            sendFlightMode();
+            telemFlightModeDone = true;
+        } else {
+            telemInc = 0;
+            telemBatDone = false;
+            telemAttitudeDone = false;
+            telemGPSDone = false;
+            telemFlightModeDone = false;
+        }
     }
 }
 
@@ -113,22 +126,10 @@ uint8_t Crossfire::crsfFrameCRC(CRSF_Frame_t &frame) {
     return crc;
 }
 
-// <Device address><Frame length><Type><Payload><CRC>
-// uint8_t Crossfire::crsfFrameCRCTelemetry(CRSF_Frame_t &frame, int payloadLen) {
-//      // CRC includes type and payload
-    
-//     uint8_t crc = crc8_dvb_s2(0, frame.frame.type);
-
-//     for (int i = 0; i < payloadLen; i++) {
-//         crc = crc8_dvb_s2(crc, frame.frame.payload[i]);
-//     }
-//     return crc;
-// }
-
 void Crossfire::begin() {
     Serial.println("starting crossfire");
-    // uart.begin(9600);
     uart->begin(CRSF_BAUDRATE);
+    // uart->addMemoryForRead(new char[100], 100);
 }
 
 void Crossfire::end() {
@@ -150,35 +151,63 @@ uint8_t Crossfire::crc8_calc(uint8_t crc, unsigned char a, uint8_t poly) {
 /**
  * Telemetry
  **/
-void Crossfire::updateTelemetryFlightMode(const char* flightMode) {
-    fm = flightMode;
+void Crossfire::updateTelemetryFlightMode(const char* fm) {
+    flightMode = fm;
 }
 
+void Crossfire::updateTelemetryAttitude(float roll, float pitch, float yaw) {
+    this->roll  =   roll * 10000;
+    this->pitch =   pitch * 10000;
+    this->yaw   =   yaw * 10000;
+}
+
+void Crossfire::updateTelemetryGPS(float lat, float lng, float groundSpeed, float headingDeg, float altitude, int satelitesInUse) {
+    this->gpsLat = lat * 10000000;
+    this->gpsLng = lng * 10000000;
+    this->groundSpeed = groundSpeed * 10;
+    this->gpsHeading = headingDeg * 100;
+    this->altitude = altitude + 1000;
+    this->satelitesInUse = satelitesInUse;
+}
+
+void Crossfire::updateTelemetryBattery(float vBat, float batCurrent, uint32_t mahDraw, int remainingPercent) {
+    this->batAvgCellVoltage = vBat * 1000 * 100;
+    this->batCurrent = batCurrent * 1000 * 100;
+    this->batRemainingPercentage = remainingPercent;
+}
+
+/*
+    0x21 Flight mode text based
+    Payload:
+    char[]      Flight mode ( Null terminated string )
+*/
 void Crossfire::sendFlightMode() {
     CRSF_Frame_t frame;
     frame.frame.deviceAddress = CRSF_SYNC_BYTE;
-    frame.frame.frameLength = 0;
-    frame.frame.type = CRSF_FRAMETYPE_FLIGHT_MODE ;
-    frame.frame.payload[0] = 'M';
-    frame.frame.payload[1] = 'O';
-    frame.frame.payload[2] = 'I';
-    frame.frame.payload[3] = 'N';
+    frame.frame.type = CRSF_FRAMETYPE_FLIGHT_MODE;
+    frame.frame.frameLength = CRSF_FRAME_FLIGHT_MODE_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_TYPE_CRC;
+    frame.frame.payload[0] = flightMode[0];
+    frame.frame.payload[1] = flightMode[1];
+    frame.frame.payload[2] = flightMode[2];
+    frame.frame.payload[3] = flightMode[3];
     frame.frame.payload[4] = 0; //null terminated
     frame.frame.payload[5] = crsfFrameCRC(frame);
-    Serial.write(frame.bytes, 4 + 5);// 4 + payload
-    // initializeTelemetryFrame();
-    // uart.write((uint8_t) 0); //write zero for frame length, since we don't know it yet
-    // uart.write((uint8_t) CRSF_FRAMETYPE_FLIGHT_MODE);
-    // uart.print(fm);
-    // uart.write((uint8_t) 0); //zero-terminate string
+    sendFrame(frame);
 }
 
-// <Device address><Frame length><Type><Payload><CRC>
+/*
+    0x08 Battery sensor
+    Payload:
+    uint16_t    Voltage ( mV * 100 )
+    uint16_t    Current ( mA * 100 )
+    uint24_t    Fuel ( drawn mAh )
+    uint8_t     Battery remaining ( percent )
+*/
 void Crossfire::sendBatteryInfo() {
-    float pinVolt = analogRead(16) / 1024.0 * 3.3; //actual volts at pin
-    float batVolt = pinVolt * 18.1f; //actual volts at pin
+    // float pinVolt = analogRead(16) / 1024.0f * 3.3f; //actual volts at pin
+    // float batVolt = pinVolt * 17.972f; //actual volts at pin
 
-    batAvgCellVoltage = batVolt * 10; //crsf scaling
+    // batAvgCellVoltage = batVolt * 10.0f; //crsf scaling
 
 
     // batAvgCellVoltage = analogRead(16) * 10.0;
@@ -201,11 +230,40 @@ void Crossfire::sendBatteryInfo() {
     // frame.frame.payload[8] = crsfFrameCRCTelemetry(frame, CRSF_FRAME_BATTERY_SENSOR_PAYLOAD_SIZE);
     frame.frame.payload[8] = crsfFrameCRC(frame);
     sendFrame(frame);
-    #ifdef CRSF_DEBUG
-    // printFrame(frame);
-    #endif
 }
 
+/*
+    0x1E Attitude
+    Payload:
+    int16_t     Pitch angle ( rad / 10000 )
+    int16_t     Roll angle ( rad / 10000 )
+    int16_t     Yaw angle ( rad / 10000 )
+*/
+void Crossfire::sendAttitude() {
+    CRSF_Frame_t frame;
+    frame.frame.deviceAddress = CRSF_SYNC_BYTE;
+    frame.frame.type = CRSF_FRAMETYPE_ATTITUDE;
+    frame.frame.frameLength = CRSF_FRAME_ATTITUDE_PAYLOAD_SIZE + CRSF_FRAME_LENGTH_TYPE_CRC;
+    //pitch
+    writeU16BigEndian(&frame.frame.payload[0], pitch);
+    //roll
+    writeU16BigEndian(&frame.frame.payload[2], roll);
+    //yaw
+    writeU16BigEndian(&frame.frame.payload[4], yaw);
+    frame.frame.payload[6] = crsfFrameCRC(frame);
+    sendFrame(frame);
+}
+
+/*
+    0x02 GPS
+    Payload:
+    int32_t     Latitude ( degree / 10`000`000 )
+    int32_t     Longitude (degree / 10`000`000 )
+    uint16_t    Groundspeed ( km/h / 10 )
+    uint16_t    GPS heading ( degree / 100 )
+    uint16      Altitude ( meter ­1000m offset )
+    uint8_t     Satellites in use ( counter )
+*/
 void Crossfire::sendGpsFrame() {
     CRSF_Frame_t frame;
     frame.frame.deviceAddress = CRSF_SYNC_BYTE;
@@ -216,18 +274,14 @@ void Crossfire::sendGpsFrame() {
     writeU32BigEndian(&frame.frame.payload[4], gpsLng);
     //groundspeed
     writeU16BigEndian(&frame.frame.payload[8], groundSpeed);
-    writeU16BigEndian(&frame.frame.payload[10], groundSpeed); //groundcourse??
+    writeU16BigEndian(&frame.frame.payload[10], gpsHeading * 10);  // gps heading is degrees * 10
     //altitude
-    writeU16BigEndian(&frame.frame.payload[12], altitude); //groundcourse??
+    writeU16BigEndian(&frame.frame.payload[12], altitude);
     frame.frame.payload[14] = satelitesInUse;
 
     //CRC
     frame.frame.payload[15] = crsfFrameCRC(frame);
-
     sendFrame(frame);
-
-    Serial.println("gps frame:");
-    printFrame(frame);
 }
 
 void Crossfire::writeU32BigEndian(uint8_t *dst, uint32_t val) {
@@ -239,9 +293,17 @@ void Crossfire::writeU32BigEndian(uint8_t *dst, uint32_t val) {
 
 void Crossfire::writeU16BigEndian(uint8_t *dst, uint16_t val) {
     dst[0] = val >> 8;
-    dst[0] = (uint8_t) val;
+    dst[1] = (uint8_t) val;
 }
 
+/*
+    CRSF frame has the structure:
+    <Device address> <Frame length> <Type> <Payload> <CRC>
+    Device address: (uint8_t)
+    Frame length:   length in  bytes including Type (uint8_t)
+    Type:           (uint8_t)
+    CRC:            (uint8_t), crc of <Type> and <Payload>
+*/
 void Crossfire::sendFrame(CRSF_Frame_t &frame) {
     const int fullFrameLength = frame.frame.frameLength + CRSF_FRAME_LENGTH_ADDRESS + CRSF_FRAME_LENGTH_FRAMELENGTH;
     // Serial.println(fullFrameLength);
@@ -263,7 +325,9 @@ void Crossfire::printFrame(CRSF_Frame_t &frame) {
     if(crc != frame.frame.payload[frame.frame.frameLength - 2]) {
         // Serial.println("CRC match");
     // } else {
+        #ifdef CRSF_DEBUG
         Serial.println("CRC MISSMATCH!");
+        #endif
     }
     Serial.println("------");
 }
@@ -309,5 +373,4 @@ double Crossfire::map(double x, double in_min, double in_max, double out_min, do
 
     // return (delta * dividend + (divisor / 2)) / divisor + out_min;
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-
 }

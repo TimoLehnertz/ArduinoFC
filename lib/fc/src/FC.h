@@ -35,6 +35,7 @@ public:
         if(chanels.armed3 && !armed) {
             arm();
             armed = true;
+            reset();
         } else if(!chanels.armed3){
             disarm();
             armed = false;
@@ -50,6 +51,8 @@ public:
     void updateRcChanels(CRSF_TxChanels_Converted& chanels) {
         this->chanels = chanels;
     }
+
+    virtual void reset();
 
     virtual void startFailsafe() = 0;
     virtual void stopFailsafe() = 0;

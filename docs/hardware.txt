@@ -1,0 +1,8 @@
+vBat voltage divider:
+
+330K Ohm
+2M Ohm
+full resistance: 
+low percentage: 14.163
+multiplicator needed: 7.0606
+max aplied voltage: 23,3

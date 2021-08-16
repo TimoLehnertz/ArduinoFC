@@ -1,6 +1,13 @@
 #include "maths.h"
 #include <Arduino.h>
 
+int strpos2(const char* haystack, const char needle, int start = 0) {
+  for(int i = start; i < 100; i++) {
+    if(haystack[i] == needle) return i;
+  }
+  return -1;
+}
+
 Vec3::Vec3() : x(0), y(0), z(0) {}
 
 Vec3::Vec3(double s) : x(s), y(s), z(s) {}
@@ -8,6 +15,19 @@ Vec3::Vec3(double s) : x(s), y(s), z(s) {}
 Vec3::Vec3(double x, double y, double z) : x(x), y(y), z(z) {}
 
 Vec3::Vec3(double v[]) : x(v[0]), y(v[1]), z(v[2]) {}
+
+Vec3::Vec3(char* str) {
+    if(strlen(str) < 7) return;
+    int delim1 = strpos2(str, ',');
+    str[delim1] = 0;
+    int delim2 = strpos2(str, ',', delim1 + 1);
+    str[delim2] = 0;
+    int delim3 = strpos2(str, ')', delim2 + 1);
+    str[delim3] = 0;
+    x = atof(str + 1);
+    y = atof(str + delim1 + 1);
+    z = atof(str + delim2 + 1);
+}
 
 double Vec3::getLength() const {
     return sqrt(x*x+y*y+z*z);
@@ -228,7 +248,7 @@ Vec3::operator double() {
 }
 
 String Vec3::toString() const {
-    return String("(") + x + String("|") + y + String("|") + z + String(")");
+    return String("(") + String(x, 5) + String("|") + String(y, 5) + String("|") + String(z, 5) + String(")");
 }
 
 Matrix3 Vec3::toMatrix3() const {

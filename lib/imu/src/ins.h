@@ -6,7 +6,7 @@
 class INS {
 public:
 
-    INS(SensorInterface &sensors) : sensors(sensors) {}
+    INS(SensorInterface* sensors) : sensors(sensors) {}
 
     void updateAcc(double, double, double);
     void updateGyro(double, double, double);
@@ -25,6 +25,8 @@ public:
     void calibrateGyro(bool = true);
     void calibrateMag(bool = true);
 
+    void reset();
+
 //  Getters
     double getRoll();
     double getRollRate();
@@ -38,8 +40,37 @@ public:
     EulerRotation getEulerRotationZYX() const;
     Quaternion getQuaternionRotation() const;
 
+    Vec3 getAccMul() {return accMul;}
+    Vec3 getGyroMul() {return gyroMul;}
+    Vec3 getMagMul() {return magMul;}
+
+    Vec3 getAccOffset() {return accOffset;}
+    Vec3 getGyroOffset() {return gyroOffset;}
+    Vec3 getMagOffset() {return magOffset;}
+
+    float getAccLowpassFilter() {return accLowpassFilter;}
+    float getGyroLowpassFilter() {return gyroLowpassFilter;}
+
+    void setAccLowpassFilter(float accLowpassFilter)  { this->accLowpassFilter = accLowpassFilter; }
+    void setGyroLowpassFilter(float gyroLowpassFilter) { this->gyroLowpassFilter = gyroLowpassFilter; }
+
+    void setAccMul(Vec3 mul) {accMul = mul;}
+    void setGyroMul(Vec3 mul) {gyroMul = mul;}
+    void setMagMul(Vec3 mul) {magMul = mul;}
+
+    void setAccOffset(Vec3 offset) {accOffset = offset;}
+    void setGyroOffset(Vec3 offset) {gyroOffset = offset;}
+    void setMagOffset(Vec3 offset) {magOffset = offset;}
+
+    Vec3 getLastFilteredAcc() { return lastFilteredAcc; }
+    Vec3 getLastFilteredGyro() { return lastFilteredGyro; }
+    Vec3 getLastFilteredMag() { return lastFilteredMag; }
+
+    float getAccInfluence() { return accInfluence; }
+    void setAccInfluence(float accInfluence) { this->accInfluence = accInfluence; }
+
 private:
-    SensorInterface& sensors;
+    SensorInterface* sensors;
     long readingVersion = 0; //counter that gets incremented everytime a an update occours
 //  Processing
     void processFilteredAcc(const Vec3&);
@@ -48,8 +79,16 @@ private:
 
 //  Calibration
     Vec3 accMul  {Vec3(1,1,1)};
-    Vec3 magMul  {Vec3(1,1,1)};
     Vec3 gyroMul {Vec3(1,1,1)};
+    Vec3 magMul  {Vec3(1,1,1)};
+
+    Vec3 accOffset  {Vec3(0,0,0)};
+    Vec3 gyroOffset {Vec3(0,0,0)};
+    Vec3 magOffset  {Vec3(0,0,0)};
+
+    float accLowpassFilter = 0.5;
+    float gyroLowpassFilter = 1;
+
     bool accCalibrationInQue  = false;
     bool gyroCalibrationInQue = false;
     bool magCalibrationInQue  = false;
@@ -58,8 +97,7 @@ private:
     bool gyroBufferFull = false;
     bool magBufferFull = false;
 
-    Vec3 accOffset {Vec3(0, 0, 0)};
-    Vec3 gyroOffset {Vec3(0, 0, 0)};
+    float accInfluence = 0.01;
 
 //  saved raw measurements
     unsigned long lastAccTime = 0;
