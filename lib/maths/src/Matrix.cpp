@@ -12,8 +12,28 @@ Matrix3::Matrix3(double s0, double s1, double s2, double s3, double s4, double s
     m[8] = s8;
 }
 
+Matrix3::Matrix3(const char* str) {
+    int pos = 0;
+    char numBuff[20];
+    int numPos = 0;
+    size_t len = strlen(str);
+    for (size_t i = 0; i < len; i++) {
+        char c = str[i];
+        if(c == ',' || i == len - 1) {
+            numBuff[numPos] = '\0';
+            m[pos] = atof(numBuff);
+            pos++;
+            numPos = 0;
+        } else if(numPos < 20){
+            numBuff[numPos] = c;
+            numPos++;
+        }
+    }
+    
+}
+
 Matrix3::Matrix3() {
-    // m[9];
+
 }
 
 Matrix3::Matrix3(double arr[9]) {
@@ -45,8 +65,12 @@ Matrix3 Matrix3::operator * (const Matrix3& m2) const {
     return Matrix3(m3);
 }
 
-Matrix3 Matrix3::operator * (const Vec3& v) const {
-    return *this * v.toMatrix3();
+// Matrix3 Matrix3::operator * (const Vec3& v) const {
+//     return *this * v.toMatrix3();
+// }
+
+Vec3 Matrix3::operator * (const Vec3& v) const {
+    return (*this * v.toMatrix3()).toVec3();
 }
 
 Matrix3 Matrix3::getTranspose() const {

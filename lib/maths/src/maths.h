@@ -10,6 +10,7 @@ public:
     double m[9];
     Matrix3();
     Matrix3(double, double, double, double, double, double, double, double, double);
+    Matrix3(const char*);
     Matrix3(double*);
 
     Vec3 toVec3() const;
@@ -17,7 +18,16 @@ public:
     Matrix3 getTranspose() const;
 
     Matrix3 operator * (const Matrix3&) const;
-    Matrix3 operator * (const Vec3&) const;
+    Vec3 operator * (const Vec3&) const;
+    String toString () const {
+        return String("") + m[0] + String(",") + m[1] + String(",") + m[2] + String(",") + m[3] + String(",") + m[4] + String(",") + m[5] + String(",") + m[6] + String(",") + m[7] + String(",") + m[8] + String(",");
+        // String s("");
+        // for (size_t i = 0; i < 9; i++) {
+        //     // Serial.println(m[i]);
+        //     s += String(",") + m[i];
+        // }
+        // return s;
+    }
 private:
     static int rowCol(int, int);
 };
@@ -78,6 +88,7 @@ struct Vec3 {
     Vec3 operator + (double) const;
     Vec3 operator - (double) const;
     Vec3 operator * (double) const;
+    Vec3 operator * (float) const;
     Vec3 operator / (double) const;
     // Vec3 operator / (long) const;
     Vec3 operator ^ (double) const;

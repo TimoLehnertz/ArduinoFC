@@ -6,14 +6,16 @@
 class INS {
 public:
 
+    SensorInterface* sensors;
+
     INS(SensorInterface* sensors) : sensors(sensors) {}
 
-    void updateAcc(double, double, double);
-    void updateGyro(double, double, double);
-    void updateMag(double, double, double);
+    void updateAcc(double, double, double, uint32_t);
+    void updateGyro(double, double, double, uint32_t);
+    void updateMag(double, double, double, uint32_t);
 
+    void begin();
     void handle();
-
 
 //  Calibration
     void requestCalibration();
@@ -35,18 +37,19 @@ public:
     double getYaw();
     double getYawRate();
     long getReadingVersion();
-    Vec3 getPosition() const;
-    Vec3 getVelocity() const;
+    Vec3 getLocation() const {return loc;}
+    Vec3 getVelocity() const {return vel;}
+    Vec3 getAcceleration() const {return accel;}
     EulerRotation getEulerRotationZYX() const;
     Quaternion getQuaternionRotation() const;
 
     Vec3 getAccMul() {return accMul;}
     Vec3 getGyroMul() {return gyroMul;}
-    Vec3 getMagMul() {return magMul;}
+    Matrix3 getMagSoftIron() {return magSoftIron;}
 
     Vec3 getAccOffset() {return accOffset;}
     Vec3 getGyroOffset() {return gyroOffset;}
-    Vec3 getMagOffset() {return magOffset;}
+    Vec3 getMagHardIron() {return magHardIron;}
 
     float getAccLowpassFilter() {return accLowpassFilter;}
     float getGyroLowpassFilter() {return gyroLowpassFilter;}
@@ -56,35 +59,38 @@ public:
 
     void setAccMul(Vec3 mul) {accMul = mul;}
     void setGyroMul(Vec3 mul) {gyroMul = mul;}
-    void setMagMul(Vec3 mul) {magMul = mul;}
+    void setMagSoftIron(Matrix3 mul) {magSoftIron = mul;}
 
     void setAccOffset(Vec3 offset) {accOffset = offset;}
     void setGyroOffset(Vec3 offset) {gyroOffset = offset;}
-    void setMagOffset(Vec3 offset) {magOffset = offset;}
+    void setMagHardIron(Vec3 offset) {magHardIron = offset;}
 
     Vec3 getLastFilteredAcc() { return lastFilteredAcc; }
     Vec3 getLastFilteredGyro() { return lastFilteredGyro; }
     Vec3 getLastFilteredMag() { return lastFilteredMag; }
 
     float getAccInfluence() { return accInfluence; }
+    float gatMagInfluence() { return magInfluence; }
     void setAccInfluence(float accInfluence) { this->accInfluence = accInfluence; }
+    void setMagInfluence(float magInfluence) { this->magInfluence = magInfluence; }
 
 private:
-    SensorInterface* sensors;
     long readingVersion = 0; //counter that gets incremented everytime a an update occours
 //  Processing
-    void processFilteredAcc(const Vec3&);
-    void processFilteredGyro(const Vec3&);
+    void processFilteredAcc(const Vec3&, uint32_t);
+    void processFilteredGyro(const Vec3&, uint32_t);
     void processFilteredMag(const Vec3&);
 
 //  Calibration
     Vec3 accMul  {Vec3(1,1,1)};
     Vec3 gyroMul {Vec3(1,1,1)};
-    Vec3 magMul  {Vec3(1,1,1)};
+    Matrix3 magSoftIron  {Matrix3(  1,1,1,
+                                    1,1,1,
+                                    1,1,1)};
 
-    Vec3 accOffset  {Vec3(0,0,0)};
-    Vec3 gyroOffset {Vec3(0,0,0)};
-    Vec3 magOffset  {Vec3(0,0,0)};
+    Vec3 accOffset  {Vec3()};
+    Vec3 gyroOffset {Vec3()};
+    Vec3 magHardIron  {Vec3()};
 
     float accLowpassFilter = 0.5;
     float gyroLowpassFilter = 1;
@@ -98,16 +104,16 @@ private:
     bool magBufferFull = false;
 
     float accInfluence = 0.01;
+    float magInfluence = 0.1;
 
 //  saved raw measurements
     unsigned long lastAccTime = 0;
     unsigned long lastGyroTime = 0;
     unsigned long lastMagTime = 0;
 
-    static const long saveCounts = 30; //also minimum amount of measurements needed for calibration of each sensor
+    static const int saveCounts = 1500; //also minimum amount of measurements needed for calibration of each sensor
     Vec3 lastRawAccs[saveCounts] {Vec3(0, 0, 1)};
     Vec3 lastRawGyros[saveCounts] {Vec3(0, 0, 0)};
-    Vec3 lastRawMags[saveCounts] {Vec3(0, 0, 0)};
     int lastRawAccCount = 0;
     int lastRawGyroCount = 0;
     int lastRawMagCount = 0;
@@ -124,10 +130,12 @@ private:
 //  States
     Vec3 loc {Vec3(0, 0, 0)};
     Vec3 vel {Vec3(0, 0, 0)};
+    Vec3 accel {Vec3(0, 0, 0)};
     Quaternion rot {Quaternion()};
 
 //  Filtering
     Vec3 prevFilteredAcc = Vec3(0, 0, 0);
+    Vec3 prevFilteredGyro = Vec3(0, 0, 0);
     Vec3 filterAcc(const Vec3&);
     Vec3 filterMag(const Vec3&);
     Vec3 filterGyro(const Vec3&);

@@ -198,6 +198,6 @@ void Quaternion::rotateReverse(Vec3 &v) const {
     Quaternion q = clone().conjugate();
     q.normalize();
     q *= p;
-    q.multiply(clone().conjugate().normalize());
+    q.multiply(clone().normalize());
     v.setFrom(q);
 }

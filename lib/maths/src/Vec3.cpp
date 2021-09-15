@@ -169,6 +169,10 @@ Vec3 Vec3::operator * (double s) const {
     return Vec3(x * s, y * s, z * s);
 }
 
+Vec3 Vec3::operator * (float s) const {
+    return Vec3(x * s, y * s, z * s);
+}
+
 Vec3 Vec3::operator / (double s) const {
     return Vec3(x / s, y / s, z / s);
 }

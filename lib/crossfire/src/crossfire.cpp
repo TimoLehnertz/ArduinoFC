@@ -30,7 +30,7 @@ void Crossfire::handle() {
         if (crsfFramePosition >= fullFrameLength) {
             const uint8_t crc = crsfFrameCRC(crsfFrame);
             if (crc != crsfFrame.bytes[fullFrameLength - 1]) {
-                Serial.println("CRSF crc missmatch! "); //Serial.print(crc); Serial.print(", got: "); Serial.println(crsfFrame.bytes[fullFrameLength - 1]);
+                // Serial.println("CRSF crc missmatch! "); //Serial.print(crc); Serial.print(", got: "); Serial.println(crsfFrame.bytes[fullFrameLength - 1]);
                 continue;
             }
             switch (crsfFrame.frame.type) {
@@ -330,6 +330,10 @@ void Crossfire::printFrame(CRSF_Frame_t &frame) {
         #endif
     }
     Serial.println("------");
+}
+
+CRSF_TxChanels Crossfire::getChanels() {
+    return chanels;
 }
 
 CRSF_TxChanels_Converted Crossfire::getChanelsCoverted() {

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CRSF
+#define CRSF
 #include <Arduino.h>
 
 
@@ -71,19 +72,19 @@ struct CRSF_TxChanels_Labels {
 };
 
 struct CRSF_TxChanels_Converted {
-    double roll;
-    double pitch;
-    double throttle;
-    double yaw;
+    float roll;
+    float pitch;
+    float throttle;
+    float yaw;
     bool armed1;
     bool armed2;
     bool armed3; //true when both 1 and 2 are true 
-    double chanel7;
-    double chanel8;
-    double chanel9;
-    double chanel10;
-    double chanel11;
-    double chanel12;
+    float chanel7;
+    float chanel8;
+    float chanel9;
+    float chanel10;
+    float chanel11;
+    float chanel12;
 };
 
 union CRSF_TxChanels {
@@ -117,6 +118,7 @@ public:
     void end();
 
     CRSF_TxChanels_Converted getChanelsCoverted();
+    CRSF_TxChanels getChanels();
 
     /**
      * Failsafe
@@ -225,6 +227,5 @@ private:
     void sendBatteryInfo(); //write battery telemetry to uart
     void sendAttitude();    //write battery telemetry to uart
     void sendGpsFrame();    //write battery telemetry to uart
-
-    // int constrain1(int amt, int low, int high);
 };
+#endif

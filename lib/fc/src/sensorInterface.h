@@ -76,6 +76,10 @@ struct GPSSensor {
  */
 class SensorInterface {
 public:
+
+    bool useAcc = true;
+    bool useMag = true;
+
     Accelerometer acc;
     Gyroscope gyro;
     Magnetometer mag;

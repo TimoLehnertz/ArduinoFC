@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
-#include <Servo.h>
+// #include <Servo.h>
+#include "../../Servo/src/Servo.h"
 
 enum MotorProtocol {
     PWM
@@ -19,6 +20,7 @@ public:
     void disarm();
 
     void write(float percentage); //write a percentage from 0 to 1
+    void writeRaw(float percentage); //write a percentage from 0 to 1
 
     bool calibrate(); //only for pwm
 
@@ -35,7 +37,7 @@ private:
     bool armed;
     MotorProtocol protocol;
 
-    float minThrottle = 0.06; //mapping values
+    float minThrottle = 0.05; //mapping values
     float maxThrottle = 1;
 
     int minPWM = 1000;

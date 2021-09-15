@@ -31,7 +31,8 @@ public:
          */
         imu.beginAccel(ACC_FULL_SCALE_8_G);
         imu.beginGyro(GYRO_FULL_SCALE_1000_DPS);
-        imu.beginMag(MAG_MODE_CONTINUOUS_8HZ);
+        imu.beginMag(MAG_MODE_CONTINUOUS_100HZ);
+        Wire.setClock(500000);
         /**
          * BMP280
          */
@@ -60,19 +61,19 @@ public:
         /**
          * MPU9250
          */
-        if (imu.accelUpdate() == 0) {
-            acc.y = -imu.accelX() + 0.3297;// swapped x and y because of alignement
-            acc.x = -imu.accelY() + -0.0290;
-            acc.z = -imu.accelZ() + 0.2768;
+        if(useAcc && imu.accelUpdate() == 0) {
+            acc.x = -imu.accelX();
+            acc.y = -imu.accelY();
+            acc.z = -imu.accelZ();
             acc.lastChange = micros();
         }
-        if (imu.gyroUpdate() == 0) {
-            gyro.y = imu.gyroX() * 0.6 + 0.7544;// swapped x and y because of alignement
-            gyro.x = imu.gyroY() * -0.6 + -0.2399;
-            gyro.z = imu.gyroZ() * 0.6 + -0.3522;
+        if(imu.gyroUpdate() == 0) {
+            gyro.x = -imu.gyroX();
+            gyro.y = -imu.gyroY();
+            gyro.z = imu.gyroZ();
             gyro.lastChange = micros();
         }
-        if (imu.magUpdate() == 0) {
+        if(useMag && ((micros() - mag.lastChange) > 100000) && imu.magUpdate() == 0) {
             mag.connected = true;
             mag.y = imu.magX();
             mag.x = imu.magY();
@@ -82,60 +83,60 @@ public:
         /**
          * BMP280
          */
-        float temperature = bmp.readTemperature();
-        if(temperature != baro.temperature) {
-            baro.temperature = temperature;
-            baro.connected = true;
-        }
-        float pa = bmp.readPressure();
-        float bar = pa / 100000.0f;
-        if(bar != baro.preassure) {
-            baro.preassure = bar;
-        }
-        float altitude = bmp.readAltitude();
-        if(altitude != baro.altitude) {
-            baro.altitude = altitude;
-            baro.lastChange = micros();
-        }
-        /**
-         * GPS
-         */
-        while (Serial5.available()) {
-            gps.connected = true;
-            if (gpsSensor.encode(Serial5.read())) {
-                gps.timeValid = gpsSensor.location.isValid();
-                if(gps.timeValid) {
-                    gps.lat = gpsSensor.location.lat();
-                    gps.lng = gpsSensor.location.lng();
-                }
-                gps.dateValid = gpsSensor.date.isValid();
-                if(gps.timeValid) {
-                    gps.year = gpsSensor.date.year();
-                    gps.month = gpsSensor.date.month();
-                    gps.day = gpsSensor.date.day();
-                }
-                gps.timeValid = gpsSensor.time.isValid();
-                if(gps.timeValid) {
-                    gps.hour = gpsSensor.time.hour();
-                    gps.minute = gpsSensor.time.minute();
-                    gps.second = gpsSensor.time.second();
-                    gps.centisecond = gpsSensor.time.centisecond();
-                }
-                gps.satelites = gpsSensor.satellites.value();
-                gps.courseValid = gpsSensor.course.isValid();
-                if(gps.courseValid) {
-                    gps.course = gpsSensor.course.deg();
-                }
-                gps.speedValid = gpsSensor.speed.isValid();
-                if(gps.speedValid) {
-                    gps.speed = gpsSensor.speed.kmph();
-                }
-                gps.altitudeValid = gpsSensor.altitude.isValid();
-                if(gps.altitudeValid) {
-                    gps.altitude = gpsSensor.altitude.value();
-                }
-                gps.lastChange = micros();
-            }
-        }
+        // float temperature = bmp.readTemperature();
+        // if(temperature != baro.temperature) {
+        //     baro.temperature = temperature;
+        //     baro.connected = true;
+        // }
+        // float pa = bmp.readPressure();
+        // float bar = pa / 100000.0f;
+        // if(bar != baro.preassure) {
+        //     baro.preassure = bar;
+        // }
+        // float altitude = bmp.readAltitude();
+        // if(altitude != baro.altitude) {
+        //     baro.altitude = altitude;
+        //     baro.lastChange = micros();
+        // }
+        // /**
+        //  * GPS
+        //  */
+        // while (Serial5.available()) {
+        //     gps.connected = true;
+        //     if (gpsSensor.encode(Serial5.read())) {
+        //         gps.timeValid = gpsSensor.location.isValid();
+        //         if(gps.timeValid) {
+        //             gps.lat = gpsSensor.location.lat();
+        //             gps.lng = gpsSensor.location.lng();
+        //         }
+        //         gps.dateValid = gpsSensor.date.isValid();
+        //         if(gps.timeValid) {
+        //             gps.year = gpsSensor.date.year();
+        //             gps.month = gpsSensor.date.month();
+        //             gps.day = gpsSensor.date.day();
+        //         }
+        //         gps.timeValid = gpsSensor.time.isValid();
+        //         if(gps.timeValid) {
+        //             gps.hour = gpsSensor.time.hour();
+        //             gps.minute = gpsSensor.time.minute();
+        //             gps.second = gpsSensor.time.second();
+        //             gps.centisecond = gpsSensor.time.centisecond();
+        //         }
+        //         gps.satelites = gpsSensor.satellites.value();
+        //         gps.courseValid = gpsSensor.course.isValid();
+        //         if(gps.courseValid) {
+        //             gps.course = gpsSensor.course.deg();
+        //         }
+        //         gps.speedValid = gpsSensor.speed.isValid();
+        //         if(gps.speedValid) {
+        //             gps.speed = gpsSensor.speed.kmph();
+        //         }
+        //         gps.altitudeValid = gpsSensor.altitude.isValid();
+        //         if(gps.altitudeValid) {
+        //             gps.altitude = gpsSensor.altitude.value();
+        //         }
+        //         gps.lastChange = micros();
+        //     }
+        // }
     }
 };

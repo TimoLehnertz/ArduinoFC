@@ -45,9 +45,15 @@ void Motor::disarm() {
     armed = false;
 }
 
+void Motor::writeRaw(float percentage) {
+    switch(protocol) {
+    case PWM: servo.write(map(percentage, 0, 1, minPWM, maxPWM)); break;
+    }
+}
+
 void Motor::write(float percentage) {
     if(!armed) return;
-    if(firstWriteAfterArm && percentage > 0.1) return; //enshuring no motor is started with full throttle
+    if(firstWriteAfterArm && percentage > 0.5) return; //enshuring no motor is started with full throttle
     if(percentage < 0) percentage = 0;
     if(percentage > 1) percentage = 1;
     switch(protocol) {
