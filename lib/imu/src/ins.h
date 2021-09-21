@@ -3,6 +3,8 @@
 #include <maths.h>
 #include <sensorInterface.h>
 
+#define INS_MAX_G_ERROR 0.15
+
 class INS {
 public:
 
@@ -37,6 +39,7 @@ public:
     double getYaw();
     double getYawRate();
     long getReadingVersion();
+    float getGForce();
     Vec3 getLocation() const {return loc;}
     Vec3 getVelocity() const {return vel;}
     Vec3 getAcceleration() const {return accel;}
@@ -74,6 +77,9 @@ public:
     void setAccInfluence(float accInfluence) { this->accInfluence = accInfluence; }
     void setMagInfluence(float magInfluence) { this->magInfluence = magInfluence; }
 
+    void setMaxGError(float maxGError) { this->maxGError = maxGError; }
+    float getMaxGError() { return this->maxGError; }
+
 private:
     long readingVersion = 0; //counter that gets incremented everytime a an update occours
 //  Processing
@@ -91,6 +97,8 @@ private:
     Vec3 accOffset  {Vec3()};
     Vec3 gyroOffset {Vec3()};
     Vec3 magHardIron  {Vec3()};
+
+    float maxGError = INS_MAX_G_ERROR;
 
     float accLowpassFilter = 0.5;
     float gyroLowpassFilter = 1;

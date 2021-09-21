@@ -167,6 +167,9 @@ public:
 	uint64_t fcTime = 0;
 	uint64_t loopEnd = 0;
 
+	float cpuLoad = 0;
+	int actualFreq = 0;
+
 	int loopFreqRate = 1000;
 	int loopFreqLevel = 1000;
 
@@ -192,7 +195,7 @@ private:
 
     char buffer[256];
     byte bufferCount = 0;
-    int telemetryFreq = 20; //Hz
+    int telemetryFreq = 10; //Hz
     uint64_t telemUs = 1000000 / telemetryFreq;
     uint64_t lastTelem = 0;
 

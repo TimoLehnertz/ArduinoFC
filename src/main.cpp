@@ -22,28 +22,62 @@ Comunicator com(&ins, &sensors, &fc);
 
 Crossfire crsf(CRSF_SERIAL_PORT);
 
+uint32_t lastLoop = 0;
+
 void loopFrequ(int freq) {
   int t = 1.0f / freq * 1000000;
   delayMicroseconds(t  - micros() % t);
 }
 
+
 void handleLoopFreq() {
+  int freq = 100;
   switch(fc.flightMode) {
-    case FlightMode::rate: {
-      loopFrequ(com.loopFreqRate);
-      break;
+    case FlightMode::rate:  freq = com.loopFreqRate; break;
+    case FlightMode::level: freq = com.loopFreqLevel; break;
+    default:                freq = com.loopFreqLevel;
+  }
+  float microT = 1000000 / freq;
+  com.cpuLoad = ((float)(com.loopEnd - com.loopStart) / microT) * 100.0f;
+  loopFrequ(freq);
+  com.actualFreq = 1000000 / (micros() - com.loopStart);
+}
+
+ /**
+ * 0 => No error
+ * 
+ * 2 => critical error
+ */
+int error = 0;
+
+Vec3 lastGyro = Vec3();
+int sameGyros = 0;
+void watchDog() {
+  error = 0;
+  /**
+   * check if raw imu data is changing and if not for 100 cycles raise critical error
+   */
+  if(sensors.gyro.x == lastGyro.x && sensors.gyro.y == lastGyro.y && sensors.gyro.z == lastGyro.z) {
+    sameGyros++;
+    if(sameGyros >= 100) {
+      sameGyros = 100;
+      error = 2;
     }
-    case FlightMode::level: {
-      loopFrequ(com.loopFreqLevel);
-      break;
-    }
-    default: {
-      loopFrequ(com.loopFreqLevel);
-    }
+  } else {
+    lastGyro = Vec3(sensors.gyro.x, sensors.gyro.y, sensors.gyro.z);
+    sameGyros = 0;
   }
 }
 
 void handleLeds() {
+  if(error == 2) {
+    // Serial.println("error");
+    analogWrite(LED_1, ((millis() % 150) > 80) * 100);
+    analogWrite(LED_2, ((millis() % 150) > 80) * 100);
+    analogWrite(LED_4, ((millis() % 150) > 80) * 100);
+    analogWrite(LED_3, ((millis() % 150) > 80) * 100);
+    return;
+  }
   if(!com.useLeds) {
     analogWrite(LED_1, 0);
     analogWrite(LED_2, 0);
@@ -93,7 +127,27 @@ void setup() {
   pinMode(LED_4, OUTPUT);
 }
 
-uint64_t lastLoop = 0;
+void handleCRSFTelem() {
+  // vBat, current, mahDraw, remaining Percent
+  // crsf.updateTelemetryBattery(0.2, 5, 10, 88);
+  crsf.updateTelemetryBattery(0.0, fc.gForce, fc.maxGForce, 0);
+  // if(millis() % 100 == 0) {
+    // Serial.println(fc.gForce);
+  // }
+  crsf.updateTelemetryAttitude(-ins.getRoll(), -ins.getPitch(), ins.getYaw());
+  switch(fc.flightMode) {
+    case FlightMode::none: {
+      crsf.updateTelemetryFlightMode("None"); break;
+    }
+    case FlightMode::rate: {
+      crsf.updateTelemetryFlightMode("Rate"); break;
+    }
+    case FlightMode::level: {
+      crsf.updateTelemetryFlightMode("Lvl"); break;
+    }
+    case FlightMode::FlightModeSize: break;
+  }
+}
 
 void loop() {
   uint64_t now = micros();
@@ -115,6 +169,7 @@ void loop() {
   fc.updateRcChanels(chanelsConv, chanels);
 
   com.chanelsTime = micros();
+  handleCRSFTelem();
   if(!com.motorOverwrite) {
     fc.handle(); //also handles motors
   } else {
@@ -124,9 +179,9 @@ void loop() {
     mBR.writeRaw(((float) com.motorBR) / 100);
   }
   com.fcTime = micros();
-  lastLoop = now;
-  handleLoopFreq();
-  com.loopEnd = micros();
-  com.handle();
   handleLeds();
+  com.handle();
+  watchDog();
+  com.loopEnd = micros();
+  handleLoopFreq();
 }

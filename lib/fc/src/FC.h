@@ -11,58 +11,44 @@
  * Default pids
  */
 //rates
-#define RATE_PID_RP                 0.00060f //Roll
-#define RATE_PID_RI                 0.00200f
-#define RATE_PID_RD                 0.00040f
+#define RATE_PID_RP                 0.00050f //Roll
+#define RATE_PID_RI                 0.00100f
+#define RATE_PID_RD                 0.00010f
 #define RATE_PID_RD_LPF             0.95000f
-#define RATE_PID_RI_MAX_BUILDUP     0.4f
-#define RATE_PID_RI_MAX_OUT         0.2f
-#define RATE_PID_RD_MAX             0.15f
+#define RATE_PID_R_MAX              1.00000f
 
-#define RATE_PID_PP                 0.00060f //pitch
-#define RATE_PID_PI                 0.00200f
-#define RATE_PID_PD                 0.00040f
+#define RATE_PID_PP                 0.00050f //pitch
+#define RATE_PID_PI                 0.00100f
+#define RATE_PID_PD                 0.00010f
 #define RATE_PID_PD_LPF             0.95000f
-#define RATE_PID_PI_MAX_BUILDUP     0.4f
-#define RATE_PID_PI_MAX_OUT         0.2f
-#define RATE_PID_PD_MAX             0.15f
+#define RATE_PID_P_MAX              1.00000f
 
 #define RATE_PID_YP                 0.00080f //yaw
 #define RATE_PID_YI                 0.00400f
 #define RATE_PID_YD                 0.00000f
-#define RATE_PID_YD_LPF             0.95000f
-#define RATE_PID_YI_MAX_BUILDUP     0.6f
-#define RATE_PID_YI_MAX_OUT         0.3f
-#define RATE_PID_YD_MAX             0.2f
+#define RATE_PID_YD_LPF             1.00000f
+#define RATE_PID_Y_MAX              1.00000f
 
 //levels
-#define LEVEL_PID_RP                0.00050f//Roll
+#define LEVEL_PID_RP                0.00148f//Roll
 #define LEVEL_PID_RI                0.00000f
-#define LEVEL_PID_RD                0.00060f
+#define LEVEL_PID_RD                0.00058f
 #define LEVEL_PID_RD_LPF            1.00000f
-#define LEVEL_PID_RI_MAX_BUILDUP    1.0f
-#define LEVEL_PID_RI_MAX_OUT        0.2f
-#define LEVEL_PID_RD_MAX            0.2f
+#define LEVEL_PID_R_MAX             1.00000f
 
-#define LEVEL_PID_PP                0.00080f//pitch
+#define LEVEL_PID_PP                0.00148f//pitch
 #define LEVEL_PID_PI                0.00000f
-#define LEVEL_PID_PD                0.00060f
+#define LEVEL_PID_PD                0.00058f
 #define LEVEL_PID_PD_LPF            1.00000f
-#define LEVEL_PID_PI_MAX_BUILDUP    1.0f
-#define LEVEL_PID_PI_MAX_OUT        0.2f
-#define LEVEL_PID_PD_MAX            0.2f
+#define LEVEL_PID_P_MAX             1.00000f
 
-#define LEVEL_PID_YP                0.00050f//yaw
-#define LEVEL_PID_YI                0.00500f
-#define LEVEL_PID_YD                0.00010f
+#define LEVEL_PID_YP                0.00000f//yaw
+#define LEVEL_PID_YI                0.00000f
+#define LEVEL_PID_YD                0.00000f
 #define LEVEL_PID_YD_LPF            1.00000f
-#define LEVEL_PID_YI_MAX_BUILDUP    1.0f
-#define LEVEL_PID_YI_MAX_OUT        0.2f
-#define LEVEL_PID_YD_MAX            0.2f
+#define LEVEL_PID_Y_MAX             1.00000f
 
-#define I_RELAX_MIN_RATE            20
-
-#define LEVEL_FACTOR                0.001f
+#define I_RELAX_MIN_RATE            30
 
 namespace FlightMode {
     enum FlightModes {
@@ -98,8 +84,6 @@ public:
     float yawRateSuper = 0.7f;
     float yawRateRCExpo = 0.0f;
 
-    float levelFactor = LEVEL_FACTOR;
-
     /**
      * Anti gravity
      */
@@ -126,15 +110,21 @@ public:
     float rollRateAdjust = 0.0f;
     float pitchRateAdjust = 0.0f;
     float yawRateAdjust = 0.0f;
+
+    /**
+     * Statistics
+     */
+    float gForce = 1.0f;
+    float maxGForce = 1.0f;
     
     FC(INS* ins, Motor* mFL, Motor* mFR, Motor* mBL, Motor* mBR) :
         ins(ins),
-        rateRollPID     (RATE_PID_RP,   RATE_PID_RI,  RATE_PID_RD,  RATE_PID_RD_LPF,  RATE_PID_RI_MAX_BUILDUP,  RATE_PID_RI_MAX_OUT,  RATE_PID_RD_MAX),
-        ratePitchPID    (RATE_PID_PP,   RATE_PID_PI,  RATE_PID_PD,  RATE_PID_PD_LPF,  RATE_PID_PI_MAX_BUILDUP,  RATE_PID_PI_MAX_OUT,  RATE_PID_PD_MAX),
-        rateYawPID      (RATE_PID_YP,   RATE_PID_YI,  RATE_PID_YD,  RATE_PID_YD_LPF,  RATE_PID_YI_MAX_BUILDUP,  RATE_PID_YI_MAX_OUT,  RATE_PID_YD_MAX),
-        levelRollPID    (LEVEL_PID_RP,  LEVEL_PID_RI, LEVEL_PID_RD, LEVEL_PID_RD_LPF, LEVEL_PID_RI_MAX_BUILDUP, LEVEL_PID_RI_MAX_OUT, LEVEL_PID_RD_MAX),
-        levelPitchPID   (LEVEL_PID_PP,  LEVEL_PID_PI, LEVEL_PID_PD, LEVEL_PID_PD_LPF, LEVEL_PID_PI_MAX_BUILDUP, LEVEL_PID_PI_MAX_OUT, LEVEL_PID_PD_MAX),
-        levelYawPID     (LEVEL_PID_YP,  LEVEL_PID_YI, LEVEL_PID_YD, LEVEL_PID_YD_LPF, LEVEL_PID_YI_MAX_BUILDUP, LEVEL_PID_YI_MAX_OUT, LEVEL_PID_YD_MAX),
+        rateRollPID     (RATE_PID_RP,   RATE_PID_RI,  RATE_PID_RD,  RATE_PID_RD_LPF,  RATE_PID_R_MAX),
+        ratePitchPID    (RATE_PID_PP,   RATE_PID_PI,  RATE_PID_PD,  RATE_PID_PD_LPF,  RATE_PID_P_MAX),
+        rateYawPID      (RATE_PID_YP,   RATE_PID_YI,  RATE_PID_YD,  RATE_PID_YD_LPF,  RATE_PID_Y_MAX),
+        levelRollPID    (LEVEL_PID_RP,  LEVEL_PID_RI, LEVEL_PID_RD, LEVEL_PID_RD_LPF, LEVEL_PID_R_MAX),
+        levelPitchPID   (LEVEL_PID_PP,  LEVEL_PID_PI, LEVEL_PID_PD, LEVEL_PID_PD_LPF, LEVEL_PID_P_MAX),
+        levelYawPID     (LEVEL_PID_YP,  LEVEL_PID_YI, LEVEL_PID_YD, LEVEL_PID_YD_LPF, LEVEL_PID_Y_MAX),
         mFL(mFL), mFR(mFR), mBL(mBL), mBR(mBR) {}
     
     void begin() {
@@ -149,21 +139,28 @@ public:
         handleFlightMode();
         handleI();
         handleAntiGravity();
+        handleStatistics();
 
-        float desYawRate;
+        levelRollPID.pMul  = map(chanels.aux6, -1, 1, 0, 2);
+        levelRollPID.iMul  = map(chanels.aux7, -1, 1, 0, 2);
+        levelRollPID.dMul  = map(chanels.aux8, -1, 1, 0, 2);
+
+        levelPitchPID.pMul = map(chanels.aux6, -1, 1, 0, 2);
+        levelPitchPID.iMul = map(chanels.aux7, -1, 1, 0, 2);
+        levelPitchPID.dMul = map(chanels.aux8, -1, 1, 0, 2);
+
+        float desYawRate = stickToRate(chanels.yaw,   yawRateRC,   yawRateSuper,   yawRateRCExpo);
 
         switch(flightMode) {
             case FlightMode::rate: {
                 float desRollRate  = stickToRate(chanels.roll,  rollRateRC,  rollRateSuper,  rollRateRCExpo);
                 float desPitchRate = stickToRate(chanels.pitch, pitchRateRC, pitchRateSuper, pitchRateRCExpo);
-                desYawRate   = stickToRate(chanels.yaw,   yawRateRC,   yawRateSuper,   yawRateRCExpo);
                 controllRate(rollRateAdjust, pitchRateAdjust, yawRateAdjust, desRollRate, desPitchRate, desYawRate);
                 break;
             }
             case FlightMode::level: {
-                float desRollAngle = chanels.roll * 50.0f;
-                float desPitchAngle = chanels.pitch * 50.0f;
-                desYawRate = stickToRate(chanels.yaw, yawRateRC, yawRateSuper, yawRateRCExpo);
+                float desRollAngle = chanels.roll * 45.0f;
+                float desPitchAngle = chanels.pitch * 45.0f;
                 controllAngle(rollRateAdjust, pitchRateAdjust, yawRateAdjust, desRollAngle, desPitchAngle, desYawRate);
                 break;
             }
@@ -236,33 +233,33 @@ private:
     float maxRateChange = 1.0f; // maximum percentage of thrust that is beeing used for pitch / yaw / roll
 
     void controllAngle(float &rollRateAdjust, float &pitchRateAdjust, float &yawRateAdjust, float desRollAngle, float desPitchAngle, float desYawRate) {
-        float desRollRate = ((ins->getRoll() * 4068) / 71 + desRollAngle) * levelFactor;
-        float desPitchRate = ((ins->getPitch() * 4068) / 71 + desPitchAngle) * levelFactor;
-        float maxRate = 280;
-        if(desRollRate < -maxRate) desRollRate = -maxRate; else if(desRollRate > maxRate) desRollRate = maxRate;
-        if(desPitchRate < -maxRate) desPitchRate = -maxRate; else if(desPitchRate > maxRate) desPitchRate = maxRate;
-        controllRate(rollRateAdjust, pitchRateAdjust, yawRateAdjust, desRollRate, desPitchRate, desYawRate);
-    }
+        // float roll = -((ins->getRoll() * 4068) / 71 + desRollAngle);
+        // float pitch = -((ins->getPitch() * 4068) / 71 + desPitchAngle);
+        // float desRollRate = levelRollPID.compute(roll, desRollAngle, ins->getRollRate());
+        // float desPitchRate = levelPitchPID.compute(pitch, desPitchAngle, ins->getPitchRate());
+        // controllRate(rollRateAdjust, pitchRateAdjust, yawRateAdjust, desRollRate, desPitchRate, desYawRate);
 
-    // void controllAngle(float &rollRateAdjust, float &pitchRateAdjust, float &yawRateAdjust, float desRollAngle, float desPitchAngle, float desYawRate) {
-    //     rollRateAdjust = levelRollPID.compute(-(ins->getRoll() * 4068) / 71, desRollAngle, ins->getRollRate());
-    //     pitchRateAdjust = levelPitchPID.compute(-(ins->getPitch() * 4068) / 71, desPitchAngle, ins->getPitchRate());
-    //     yawRateAdjust = levelYawPID.compute(ins->getYawRate(), desYawRate);
-    // }
+        float roll = (-ins->getRoll() * 4068) / 71;
+        float pitch = (-ins->getPitch() * 4068) / 71;
+        rollRateAdjust = levelRollPID.compute(roll, desRollAngle, ins->getRollRate());
+        pitchRateAdjust = levelPitchPID.compute(pitch, desPitchAngle, ins->getPitchRate());
+        yawRateAdjust = rateYawPID.compute(ins->getYawRate(), desYawRate);
+    }
 
     void controllRate(float &rollRateAdjust, float &pitchRateAdjust, float &yawRateAdjust, float desRollRate, float desPitchRate, float desYawRate) {
         rollRateAdjust = rateRollPID.compute(ins->getRollRate(), desRollRate);
         pitchRateAdjust = ratePitchPID.compute(ins->getPitchRate(), desPitchRate);
         yawRateAdjust = rateYawPID.compute(ins->getYawRate(), desYawRate);
-        // if(millis() % 100 == 0) {
-        //     Serial.println(rollRateAdjust);
-        // }
     }
 
     void reset() {
         ratePitchPID.reset();
         rateYawPID.reset();
         rateRollPID.reset();
+
+        levelPitchPID.reset();
+        levelYawPID.reset();
+        levelRollPID.reset();
     }
 
     void crop(float& val, float lim) {
@@ -290,7 +287,7 @@ private:
     void handleFlightMode() {
         if(overwriteFlightMode != FlightMode::none) {
             flightMode = overwriteFlightMode;
-        } else if(chanels.chanel7 > 0.75) {
+        } else if(chanels.aux2 > 0.75) {
             flightMode = FlightMode::level;
         } else {
             flightMode = FlightMode::rate;
@@ -298,8 +295,8 @@ private:
 
         switch(flightMode) {
             case FlightMode::rate: {
-                ins->sensors->useAcc = false;
-                ins->sensors->useMag = false;
+                ins->sensors->useAcc = true;
+                ins->sensors->useMag = true;
                 break;
             }
             case FlightMode::level: {
@@ -314,11 +311,11 @@ private:
     }
 
     void handleArm() {
-        if(chanels.armed3 && !armed) {
+        if(chanels.aux1 > 0.9 && !armed) {
             arm();
-            armed = true;
             reset();
-        } else if(!chanels.armed3) {
+            armed = true;
+        } else if(chanels.aux1 < 0.9) {
             disarm();
             armed = false;
         }
@@ -360,24 +357,24 @@ private:
     uint32_t lastYawIReset = 0;
 
     void handleI() {
-        if(chanels.armed3 && chanels.throttle > 0.3) {
+        if(armed && chanels.throttle > 0.3) {
             airborne = true;
         }
-        if(!chanels.armed3) {
+        if(!armed) {
             airborne = false;
         }
-        // airborne = true;
+        airborne = true;
         //relax
         rateRollPID.lockI   = abs(ins->getRollRate()) > iRelaxMinRate;
         ratePitchPID.lockI  = abs(ins->getPitchRate()) > iRelaxMinRate;
         rateYawPID.lockI    = abs(ins->getYawRate()) > iRelaxMinRate;
 
-        rateRollPID.iEnabled = airborne;
+        rateRollPID.iEnabled  = airborne;
         ratePitchPID.iEnabled = airborne;
-        rateYawPID.iEnabled = airborne;
+        rateYawPID.iEnabled   = airborne;
         levelRollPID.iEnabled = airborne;
-        levelPitchPID.iEnabled = airborne;
-        levelYawPID.iEnabled = airborne;
+        levelPitchPID.iEnabled= airborne;
+        levelYawPID.iEnabled  = airborne;
     }
 
     float getMaxAbsAttitudeChanel() {
@@ -397,5 +394,13 @@ private:
         rateYawPID.iBoost   = 1 + (antiGravityMul - 1) * iBoost;
         lastThrottle = chanels.throttle;
         lastBoost = iBoost;
+    }
+
+    void handleStatistics() {
+        if(chanels.aux3 > 0.5) {
+            maxGForce = 0;
+        }
+        gForce = ins->getGForce();
+        maxGForce = max(maxGForce, gForce);
     }
 };

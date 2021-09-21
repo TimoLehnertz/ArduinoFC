@@ -39,11 +39,11 @@ public:
         bmp = Adafruit_BMP280(&Wire1);
 
         //if (!bmp.begin(BMP280_ADDRESS_ALT, BMP280_CHIPID)) {
-        if (!bmp.begin(0x76)) {
-            Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
-                            "try a different address!"));
-            while (1) delay(10);
-        }
+        // if (!bmp.begin(0x76)) {
+        //     Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
+        //                     "try a different address!"));
+        //     while (1) delay(10);
+        // }
 
         /* Default settings from datasheet. */
         bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */

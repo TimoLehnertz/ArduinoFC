@@ -93,21 +93,42 @@ void INS::updateGyro(double x, double y, double z, uint32_t deltaT) {
 void INS::processFilteredAcc(const Vec3 &acc, uint32_t deltaT) {
     float elapsedSeconds = deltaT / 1000000.0f;
     //rotation
-    if(acc.getLength() < 1.2 && acc.getLength() > 0.8) { //check if movement is too strong
-        double roll = -atan2(acc.y, acc.z); //minus because not beeing aligned with sticks otherwise
-        double pitch = atan2(-acc.x, sqrt(acc.y*acc.y + acc.z*acc.z));
-        Quaternion accRot(EulerRotation(roll, pitch, -rot.toEulerZYX().z));
-        rot.normalize();
-        rot.calibrate();
-        accRot.calibrate();
-        double len = acc.getLength();
-        double limitRad = PI / 3.5;
-        double limitG = 0.2;
-        pitch = rot.toEulerZYX().y;
-        if(len > 1 - limitG && len < 1 + limitG && pitch > -limitRad && pitch < limitRad) {
+    float maxGError = 0.15;
+    double limitRad = PI / 3.5;
+    double g = acc.getLength();
+    double pitch = rot.toEulerZYX().y;
+    float minG = 0.8;
+    if(pitch > -limitRad && pitch < limitRad && g > minG) { //check if movement is too strong or gimbal lock could interfere
+        Vec3 accClone = Vec3(acc.x, acc.y, sqrt(-pow(acc.x, 2) -pow(acc.y, 2) + 1)); // calculating z assuming that G-Force is equal to 1 => eliminating propeller lift
+        if(accClone.z == accClone.z) { // NaN check
+            double accRoll = -atan2(accClone.y, accClone.z); //minus because not beeing aligned with sticks otherwise
+            double accPitch = atan2(-accClone.x, sqrt(accClone.y*accClone.y + accClone.z*accClone.z));
+            Quaternion accRot(EulerRotation(accRoll, accPitch, -rot.toEulerZYX().z));
+            rot.normalize();
+            rot.calibrate();
+            accRot.calibrate();
+            
             rot = Quaternion::lerp(accRot, rot, 1 - accInfluence);
         }
+        // static uint32_t milli = 0;
+        // if(millis() % 50 == 0 && milli != millis()) {
+        //     Serial.print(acc.toString());
+        //     Serial.print("->");
+        //     Serial.println(accClone.z);
+        //     milli = millis();
+        // }
+        
     }
+    // if(len < 1 + maxGError && len > 1 - maxGError && pitch > -limitRad && pitch < limitRad) { //check if movement is too strong or gimbal lock could interfere
+    //     double roll = -atan2(acc.y, acc.z); //minus because not beeing aligned with sticks otherwise
+    //     double pitch = atan2(-acc.x, sqrt(acc.y*acc.y + acc.z*acc.z));
+    //     Quaternion accRot(EulerRotation(roll, pitch, -rot.toEulerZYX().z));
+    //     rot.normalize();
+    //     rot.calibrate();
+    //     accRot.calibrate();
+        
+    //     rot = Quaternion::lerp(accRot, rot, 1 - accInfluence);
+    // }
     readingVersion++;
     //acceleration
     // Vec3 accel = Vec3(0,0,1.005);
@@ -257,4 +278,8 @@ double INS::getYawRate() {
 
 long INS::getReadingVersion() {
     return readingVersion;
+}
+
+float INS::getGForce() {
+    return lastFilteredAcc.getLength();;
 }

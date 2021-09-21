@@ -150,9 +150,13 @@ uint8_t Crossfire::crc8_calc(uint8_t crc, unsigned char a, uint8_t poly) {
 
 /**
  * Telemetry
+ * max 4 chars
  **/
 void Crossfire::updateTelemetryFlightMode(const char* fm) {
-    flightMode = fm;
+    size_t len = strlen(fm);
+    for (size_t i = 0; i < 4; i++) {
+        flightMode[i] = i < len ? fm[i] : ' ';
+    }
 }
 
 void Crossfire::updateTelemetryAttitude(float roll, float pitch, float yaw) {
@@ -171,8 +175,9 @@ void Crossfire::updateTelemetryGPS(float lat, float lng, float groundSpeed, floa
 }
 
 void Crossfire::updateTelemetryBattery(float vBat, float batCurrent, uint32_t mahDraw, int remainingPercent) {
-    this->batAvgCellVoltage = vBat * 1000 * 100;
-    this->batCurrent = batCurrent * 1000 * 100;
+    this->batAvgCellVoltage = vBat * 10;
+    this->batCurrent = batCurrent * 10;
+    this->mahDraw = mahDraw;
     this->batRemainingPercentage = remainingPercent;
 }
 
@@ -306,8 +311,6 @@ void Crossfire::writeU16BigEndian(uint8_t *dst, uint16_t val) {
 */
 void Crossfire::sendFrame(CRSF_Frame_t &frame) {
     const int fullFrameLength = frame.frame.frameLength + CRSF_FRAME_LENGTH_ADDRESS + CRSF_FRAME_LENGTH_FRAMELENGTH;
-    // Serial.println(fullFrameLength);
-    // return; // write crashes on teensy
     uart->write(frame.bytes, fullFrameLength);
 }
 
@@ -339,42 +342,35 @@ CRSF_TxChanels Crossfire::getChanels() {
 CRSF_TxChanels_Converted Crossfire::getChanelsCoverted() {
     CRSF_TxChanels_Converted conv;
     if(!firstFrameReceived) { //default values
-        conv.roll       = 0;
-        conv.pitch      = 0;
-        conv.throttle   = 0;
-        conv.yaw        = 0;
-        conv.armed1     = 0;
-        conv.armed2     = 0;
-        conv.armed3     = 0;
-        conv.chanel7    = 0;
-        conv.chanel8    = 0;
-        conv.chanel9    = 0;
-        conv.chanel10   = 0;
-        conv.chanel11   = 0;
-        conv.chanel12   = 0;
+        conv.roll     = 0;
+        conv.pitch    = 0;
+        conv.throttle = 0;
+        conv.yaw      = 0;
+        conv.aux1     = 0;
+        conv.aux2     = 0;
+        conv.aux3     = 0;
+        conv.aux4     = 0;
+        conv.aux5     = 0;
+        conv.aux6     = 0;
+        conv.aux7     = 0;
+        conv.aux8     = 0;
     } else {
-        conv.roll = map(chanels.labels.roll, 172.0, 1809.0, -1.0, 1.0);
-        conv.pitch = map(chanels.labels.pitch, 172.0, 1809.0, -1.0, 1.0);
-        conv.throttle = map((double) chanels.labels.throttle, 172.0, 1809.0, 0.0, 1.0);//Serial.print("throttle: "); Serial.println(chanels.labels.throttle);
-        conv.yaw = map(chanels.labels.yaw, 172.0, 1809.0, -1.0, 1.0);
-        conv.armed1 = chanels.labels.armed1 > 1800;
-        conv.armed2 = chanels.labels.armed2 > 1800;
-        conv.armed3 = conv.armed1 && conv.armed2;
-        conv.chanel7    = map(chanels.labels.chanel7, 172.0, 1809.0, -1, 1);
-        conv.chanel8    = map(chanels.labels.chanel8, 172.0, 1809.0, -1, 1);
-        conv.chanel9    = map(chanels.labels.chanel9, 172.0, 1809.0, -1, 1);
-        conv.chanel10   = map(chanels.labels.chanel10, 172.0, 1809.0, -1, 1);
-        conv.chanel11   = map(chanels.labels.chanel11, 172.0, 1809.0, -1, 1);
-        conv.chanel12   = map(chanels.labels.chanel12, 172.0, 1809.0, -1, 1);
+        conv.roll     = map(chanels.labels.roll, 172.0, 1809.0, -1.0, 1.0);
+        conv.pitch    = map(chanels.labels.pitch, 172.0, 1809.0, -1.0, 1.0);
+        conv.throttle = map(chanels.labels.throttle, 172.0, 1809.0, 0.0, 1.0);
+        conv.yaw      = map(chanels.labels.yaw,  172.0, 1809.0, -1.0, 1.0);
+        conv.aux1     = map(chanels.labels.aux1, 172.0, 1809.0, -1.0, 1.0);
+        conv.aux2     = map(chanels.labels.aux2, 172.0, 1809.0, -1.0, 1.0);
+        conv.aux3     = map(chanels.labels.aux3, 172.0, 1809.0, -1.0, 1.0);
+        conv.aux4     = map(chanels.labels.aux4, 172.0, 1809.0, -1.0, 1.0);
+        conv.aux5     = map(chanels.labels.aux5, 172.0, 1809.0, -1.0, 1.0);
+        conv.aux6     = map(chanels.labels.aux6, 172.0, 1809.0, -1.0, 1.0);
+        conv.aux7     = map(chanels.labels.aux7, 172.0, 1809.0, -1.0, 1.0);
+        conv.aux8     = map(chanels.labels.aux8, 172.0, 1809.0, -1.0, 1.0);
     }
     return conv;
 }
 
 double Crossfire::map(double x, double in_min, double in_max, double out_min, double out_max) {
-    // const double dividend = out_max - out_min;
-    // const double divisor = in_max - in_min;
-    // const double delta = x - in_min;
-
-    // return (delta * dividend + (divisor / 2)) / divisor + out_min;
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }

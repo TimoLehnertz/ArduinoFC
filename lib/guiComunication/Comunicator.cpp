@@ -115,13 +115,14 @@ void Comunicator::postTelemetry() {
     postSensorData("GPS", "Sat", sensors->gps.satelites);
   }
   if(useTimingTelem) {
-    postSensorData("FREQ", "loopHz", 0.000001f / (loopEnd - loopStart));
+    postSensorData("FREQ", "loopHz", actualFreq);
     postSensorData("TIME", "CRSF Us", crsfTime - loopStart);
     postSensorData("TIME", "Sens Us", sensorsTime - crsfTime);
     postSensorData("TIME", "INS Us", insTime - sensorsTime);
     postSensorData("TIME", "Chan Us", chanelsTime - insTime);
     postSensorData("TIME", "FC Us", fcTime - chanelsTime);
     postSensorData("TIME", "Sum", loopEnd - loopStart);
+    postSensorData("CPU Load", "", cpuLoad);
   }
   if(useRCTelem) {
     postSensorData("RC", "CH1", fc->chanelsRaw.chanels[0]);
@@ -144,6 +145,8 @@ void Comunicator::postTelemetry() {
     postSensorData("Rate PID Roll", fc->rateRollPID);
     postSensorData("Rate PID Pitch", fc->ratePitchPID);
     postSensorData("Rate PID Yaw", fc->rateYawPID);
+    postSensorData("Level PID Roll", fc->levelRollPID);
+    postSensorData("Level PID Pitch", fc->levelPitchPID);
     postSensorData("Anti Gravity", "boost", fc->iBoost);
   }
 }
@@ -175,9 +178,10 @@ void Comunicator::postSensorData(const char* sensorName, const char* subType, fl
 }
 
 void Comunicator::postSensorData(const char* sensorName, PID pid) {
-  postSensorData(sensorName, "P", pid.lastP);
-  postSensorData(sensorName, "I", pid.lastI);
-  postSensorData(sensorName, "D", pid.lastD);
+  postSensorData(sensorName, "P", pid.prevP);
+  postSensorData(sensorName, "I", pid.prevI);
+  postSensorData(sensorName, "D", pid.prevD);
+  postSensorData(sensorName, "SUM", pid.prevOut);
 }
 
 
@@ -355,8 +359,8 @@ void Comunicator::processSerialLine() {
     if(strncmp("OVERWRITE_FM", command, 12) == 0) {
       postResponse(uid, fc->overwriteFlightMode);
     }
-    if(strncmp("LEVEL_FACTOR", command, 12) == 0) {
-      postResponse(uid, fc->levelFactor);
+    if(strncmp("INS_ACC_MAX_G", command, 13) == 0) {
+      postResponse(uid, ins->getMaxGError());
     }
   }
 
@@ -608,9 +612,9 @@ void Comunicator::processSerialLine() {
         fc->overwriteFlightMode = FlightMode::none;
       }
     }
-    if(strncmp("LEVEL_FACTOR", command, 12) == 0) {
+    if(strncmp("INS_ACC_MAX_G", command, 13) == 0) {
       postResponse(uid, value);
-      fc->levelFactor = atof(value);
+      ins->setMaxGError(atof(value));
     }
   }
 }
@@ -712,13 +716,9 @@ void Comunicator::postResponse(char* uid, PID pid) {
   Serial.print(",");
   Serial.print(pid.dlpf, 5);
   Serial.print(",");
-  Serial.print(pid.iMul, 5);
+  Serial.print(pid.maxOut, 5);
   Serial.print(",");
-  Serial.print(pid.iMaxBuildup, 5);
-  Serial.print(",");
-  Serial.print(pid.iMaxOut, 5);
-  Serial.print(",");
-  Serial.println(pid.dMax, 5);
+  Serial.println(pid.useAuxTuning ? "1" : "0");
 
   Serial2.print("FC_RES ");
   Serial2.print(uid);
@@ -731,13 +731,9 @@ void Comunicator::postResponse(char* uid, PID pid) {
   Serial2.print(",");
   Serial2.print(pid.dlpf, 5);
   Serial2.print(",");
-  Serial2.print(pid.iMul, 5);
+  Serial2.print(pid.maxOut, 5);
   Serial2.print(",");
-  Serial2.print(pid.iMaxBuildup, 5);
-  Serial2.print(",");
-  Serial2.print(pid.iMaxOut, 5);
-  Serial2.print(",");
-  Serial2.println(pid.dMax, 5);
+  Serial2.println(pid.useAuxTuning ? "1" : "0");
 }
 
 void Comunicator::saveEEPROM() {
@@ -766,7 +762,7 @@ void Comunicator::saveEEPROM() {
   Storage::write(PidValues::levelPidP,  fc->levelPitchPID);
   Storage::write(PidValues::levelPidY,  fc->levelYawPID);
 
-  Storage::write(FloatValues::levelFactor, fc->levelFactor);
+  Storage::write(FloatValues::insAccMaxG, ins->getMaxGError());
 
   Storage::write(Matrix3Values::magSoftIron, ins->getMagSoftIron());
 
@@ -809,7 +805,7 @@ void Comunicator::readEEPROM() {
   fc->levelPitchPID   = Storage::read(PidValues::levelPidP);
   fc->levelYawPID     = Storage::read(PidValues::levelPidY);
 
-  fc->levelFactor = Storage::read(FloatValues::levelFactor);
+  ins->setMaxGError(Storage::read(FloatValues::insAccMaxG));
 
   loopFreqRate = Storage::read(FloatValues::loopFreqRate);
   loopFreqLevel = Storage::read(FloatValues::loopFreqLevel);

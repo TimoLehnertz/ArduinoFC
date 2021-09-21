@@ -219,6 +219,7 @@ public:
         return (q1.clone() * (1 - t) + q2.clone() * t).normalize();
     }
 
+
     String toString() const {
         return String("(w=") + w + String(",x=") + x + String(",y=") + y + String(",z=") + z + String(")");
     }

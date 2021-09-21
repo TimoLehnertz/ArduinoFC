@@ -1,3 +1,5 @@
+// https://github.com/bolandrm/rmb_multicopter/blob/master/src/motors.cpp
+
 #include <Arduino.h>
 #include "Motor.h"
 // #include "utils.h"

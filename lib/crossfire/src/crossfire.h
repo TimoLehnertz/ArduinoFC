@@ -61,14 +61,14 @@ struct CRSF_TxChanels_Labels {
     uint16_t pitch;
     uint16_t throttle;
     uint16_t yaw;
-    uint16_t armed1;
-    uint16_t armed2;
-    uint16_t chanel7;
-    uint16_t chanel8;
-    uint16_t chanel9;
-    uint16_t chanel10;
-    uint16_t chanel11;
-    uint16_t chanel12;
+    uint16_t aux1;
+    uint16_t aux2;
+    uint16_t aux3;
+    uint16_t aux4;
+    uint16_t aux5;
+    uint16_t aux6;
+    uint16_t aux7;
+    uint16_t aux8;
 };
 
 struct CRSF_TxChanels_Converted {
@@ -76,15 +76,14 @@ struct CRSF_TxChanels_Converted {
     float pitch;
     float throttle;
     float yaw;
-    bool armed1;
-    bool armed2;
-    bool armed3; //true when both 1 and 2 are true 
-    float chanel7;
-    float chanel8;
-    float chanel9;
-    float chanel10;
-    float chanel11;
-    float chanel12;
+    float aux1;
+    float aux2;
+    float aux3;
+    float aux4;
+    float aux5;
+    float aux6;
+    float aux7;
+    float aux8;
 };
 
 union CRSF_TxChanels {
@@ -196,10 +195,10 @@ private:
     /**
      * Attitude stats
      **/
-    uint16_t pitch = 0;                 // Pitch angle ( rad / 10000 )
-    uint16_t roll = 0;                  // Roll angle ( rad / 10000 )
-    uint16_t yaw = 0;                   // Yaw angle ( rad / 10000 )
-
+    int16_t pitch = 0;                  // Pitch angle ( rad / 10000 )
+    int16_t roll = 0;                   // Roll angle ( rad / 10000 )
+    int16_t yaw = 0;                    // Yaw angle ( rad / 10000 )
+ 
     /**
      * GPS stats
      **/
@@ -213,7 +212,7 @@ private:
     /**
      * Flight mode
      **/
-    const char* flightMode = "(-;>";   //exactly 4 chars
+    char flightMode[5] = "(-;>";   //exactly 4 chars
 
     void sendFrame(CRSF_Frame_t &frame);
 
