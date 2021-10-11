@@ -8,7 +8,7 @@
 
 #define LED_1 1
 #define LED_2 0
-#define LED_3 22
+#define LED_3 11
 #define LED_4 23
 
 

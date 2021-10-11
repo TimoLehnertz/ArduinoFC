@@ -142,8 +142,9 @@ public:
     INS* ins;
     SensorInterface* sensors;
     FC* fc;
+	Crossfire* crsf;
 
-    Comunicator(INS* ins, SensorInterface* sensors, FC* fc) : ins(ins), sensors(sensors), fc(fc) {}
+    Comunicator(INS* ins, SensorInterface* sensors, FC* fc, Crossfire* crsf) : ins(ins), sensors(sensors), fc(fc), crsf(crsf) {}
 
     void begin();
     void handle();
@@ -176,7 +177,11 @@ public:
     void saveEEPROM();
     void readEEPROM();
 
+	void handleCRSFTelem();
+
 	bool useLeds = false;
+
+	bool useCellVoltage = true;
 
 private:
 
@@ -192,10 +197,11 @@ private:
 	bool useTimingTelem = false;
 	bool useRCTelem = false;
 	bool useFCTelem = false;
+	bool useBatTelem = false;
 
     char buffer[256];
     byte bufferCount = 0;
-    int telemetryFreq = 10; //Hz
+    int telemetryFreq = 60; //Hz
     uint64_t telemUs = 1000000 / telemetryFreq;
     uint64_t lastTelem = 0;
 

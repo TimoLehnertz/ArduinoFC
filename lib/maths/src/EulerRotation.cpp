@@ -37,6 +37,11 @@ Matrix3 EulerRotation::getMatrix() const {
     }
 }
 
+EulerRotation EulerRotation::toMode(EulerMode mdoe) {
+    mode = mode;
+    return *this;
+}
+
 void EulerRotation::rotate(Vec3 &v) const {
     v = getMatrix() * v;
 }

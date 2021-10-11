@@ -6,6 +6,7 @@
 #include "../../crossfire/src/crossfire.h"
 // #include <pid.h>
 #include "../../pid/pid.h"
+#include "flightModes.h"
 
 /**
  * Default pids
@@ -49,16 +50,6 @@
 #define LEVEL_PID_Y_MAX             1.00000f
 
 #define I_RELAX_MIN_RATE            30
-
-namespace FlightMode {
-    enum FlightModes {
-        none = 0,
-        rate = 1,
-        level = 2,
-
-        FlightModeSize,
-    };
-}
 
 class FC {
 public:
@@ -126,7 +117,7 @@ public:
         levelPitchPID   (LEVEL_PID_PP,  LEVEL_PID_PI, LEVEL_PID_PD, LEVEL_PID_PD_LPF, LEVEL_PID_P_MAX),
         levelYawPID     (LEVEL_PID_YP,  LEVEL_PID_YI, LEVEL_PID_YD, LEVEL_PID_YD_LPF, LEVEL_PID_Y_MAX),
         mFL(mFL), mFR(mFR), mBL(mBL), mBR(mBR) {}
-    
+
     void begin() {
         mFL->begin();
         mFR->begin();
@@ -141,13 +132,15 @@ public:
         handleAntiGravity();
         handleStatistics();
 
-        levelRollPID.pMul  = map(chanels.aux6, -1, 1, 0, 2);
-        levelRollPID.iMul  = map(chanels.aux7, -1, 1, 0, 2);
-        levelRollPID.dMul  = map(chanels.aux8, -1, 1, 0, 2);
+        PID::updateAux(chanels.aux6, chanels.aux7, chanels.aux8);
 
-        levelPitchPID.pMul = map(chanels.aux6, -1, 1, 0, 2);
-        levelPitchPID.iMul = map(chanels.aux7, -1, 1, 0, 2);
-        levelPitchPID.dMul = map(chanels.aux8, -1, 1, 0, 2);
+        // levelRollPID.pMul  = map(chanels.aux6, -1, 1, 0, 2);
+        // levelRollPID.iMul  = map(chanels.aux7, -1, 1, 0, 2);
+        // levelRollPID.dMul  = map(chanels.aux8, -1, 1, 0, 2);
+
+        // levelPitchPID.pMul = map(chanels.aux6, -1, 1, 0, 2);
+        // levelPitchPID.iMul = map(chanels.aux7, -1, 1, 0, 2);
+        // levelPitchPID.dMul = map(chanels.aux8, -1, 1, 0, 2);
 
         float desYawRate = stickToRate(chanels.yaw,   yawRateRC,   yawRateSuper,   yawRateRCExpo);
 

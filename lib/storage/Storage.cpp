@@ -25,6 +25,16 @@ Vec3 Storage::read(Vec3Values floatVal) {
     return Vec3(x, y, z);
 }
 
+Quaternion Storage::read(QuaternionValues quatVal) {
+    double x, y, z, w;
+    int addr = quaternionStart() + quatVal * STORAGE_SIZE_QUATERNION;
+    EEPROM.get(addr, x);
+    EEPROM.get(addr + sizeof(double), y);
+    EEPROM.get(addr + sizeof(double) * 2, z);
+    EEPROM.get(addr + sizeof(double) * 3, w);
+    return Quaternion(w, x, y, z);
+}
+
 Matrix3 Storage::read(Matrix3Values matVal) {
     Matrix3 mat;
     int addr = matrix3Start() + matVal * sizeof(double) * 9;
@@ -66,6 +76,15 @@ void Storage::write(Vec3Values vec3Val, Vec3 vec) {
     EEPROM.put(addr, vec.x);
     EEPROM.put(addr + sizeof(double), vec.y);
     EEPROM.put(addr + sizeof(double) * 2, vec.z);
+}
+
+void Storage::write(QuaternionValues quatVal, Quaternion quat) {
+    int addr = quaternionStart() + quatVal * STORAGE_SIZE_QUATERNION;
+    if(addr >= eepromSize - 10) return;//preserve last 10 bytes
+    EEPROM.put(addr, quat.x);
+    EEPROM.put(addr + sizeof(double), quat.y);
+    EEPROM.put(addr + sizeof(double) * 2, quat.z);
+    EEPROM.put(addr + sizeof(double) * 3, quat.w);
 }
 
 void Storage::write(Matrix3Values mat3Val, Matrix3 mat) {
@@ -116,6 +135,7 @@ void Storage::writeDefaults() {
     write(BoolValues::propsIn, true);
     write(BoolValues::useLeds, true);
     write(BoolValues::useAntiGravity, true);
+    write(BoolValues::useVCell, true);
 
     PID rateR_PID    (RATE_PID_RP,   RATE_PID_RI,  RATE_PID_RD,  RATE_PID_RD_LPF,  RATE_PID_R_MAX);
     PID rateP_PID    (RATE_PID_PP,   RATE_PID_PI,  RATE_PID_PD,  RATE_PID_PD_LPF,  RATE_PID_P_MAX);
@@ -132,6 +152,9 @@ void Storage::writeDefaults() {
     write(FloatValues::antiGravityMul, 1.0f);
     write(FloatValues::boostLpf, 0.005f);
     write(FloatValues::boostSpeed, 40.0f);
+    write(FloatValues::batLpf, 0.001f);
+    write(FloatValues::batMul, 11.9f);
+
     /**
      * PIDs
      */
@@ -148,16 +171,24 @@ void Storage::writeDefaults() {
 
     write(FloatValues::iRelaxMinRate, I_RELAX_MIN_RATE);
 
-    write(Vec3Values::accOffset, Vec3(0.0f, 0.0f, 0.0f));
-    write(Vec3Values::gyroOffset, Vec3(0.0f, 0.0f, 0.0f));
-    write(Vec3Values::magHardIron, Vec3(155.874587f, -6.118738f, 42.876593f));
+    write(Vec3Values::accOffset,    Vec3(-0.421501f, 0.043717f, -0.276401f));
+    write(Vec3Values::gyroOffset,   Vec3(0.0f, 0.0f, 0.0f));
+    write(Vec3Values::magHardIron,  Vec3(155.874587f, -6.118738f, 42.876593f));
 
 
-    write(Vec3Values::accMul, Vec3(1.0f, 1.0f, 1.0f));
-    write(Vec3Values::gyroMul, Vec3(1.0f, 1.0f, 1.0f));
-    write(Vec3Values::magMul, Vec3(1.0f, 1.0f, 1.0f));
+    write(QuaternionValues::accAngleOffset,  Quaternion());
 
-    write(Matrix3Values::magSoftIron, Matrix3(0.665105f, 0.034308f, 0.031915f, 0.034308f, 0.702825f, 0.016322f, 0.031915f, 0.016322f, 0.713672f));
+
+    write(Matrix3Values::accMul, Matrix3(   0.997863f, 0.001927f, 0.001743f,
+                                            0.001927f, 0.997373f, -0.000326f,
+                                            0.001743f, -0.000326f, 0.988860f));
+
+    write(Vec3Values::gyroMul,  Vec3(1.0f, 1.0f, 1.0f));
+    write(Vec3Values::magMul,   Vec3(1.0f, 1.0f, 1.0f));
+
+    write(Matrix3Values::magSoftIron, Matrix3(  0.665105f, 0.034308f, 0.031915f,
+                                                0.034308f, 0.702825f, 0.016322f,
+                                                0.031915f, 0.016322f, 0.713672f));
 
     Serial.println("Wrote defaults into EEPROM");
     Serial2.println("Wrote defaults into EEPROM");
@@ -175,8 +206,12 @@ int Storage::vec3Start() {
     return floatStart() + (FloatValues::FloatValuesCount) * STORAGE_SIZE_FLOAT;
 }
 
-int Storage::matrix3Start() {
+int Storage::quaternionStart() {
     return vec3Start() + (Vec3Values::Vec3ValuesCount) * STORAGE_SIZE_VEC3;
+}
+
+int Storage::matrix3Start() {
+    return quaternionStart() + (QuaternionValues::QuaternionValuesCount) * STORAGE_SIZE_QUATERNION;
 }
 
 int Storage::pidStart() {

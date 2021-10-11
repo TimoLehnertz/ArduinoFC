@@ -98,7 +98,8 @@ void Comunicator::postTelemetry() {
 
   if(sensors->baro.connected && useBaroTelem) {
     postSensorData("BARO", "Alt", sensors->baro.altitude);
-    postSensorData("BARO", "Temp", sensors->baro.temperature);
+    postSensorData("BARO(f)", "Alt", ins->getLastFilteredBaroAltitude());
+    postSensorData("BARO(speed)", "Alt", ins->getBaroAltSpd());
   }
 
   if(sensors->gps.connected && useGpsTelem) {
@@ -121,7 +122,7 @@ void Comunicator::postTelemetry() {
     postSensorData("TIME", "INS Us", insTime - sensorsTime);
     postSensorData("TIME", "Chan Us", chanelsTime - insTime);
     postSensorData("TIME", "FC Us", fcTime - chanelsTime);
-    postSensorData("TIME", "Sum", loopEnd - loopStart);
+    // postSensorData("TIME", "Sum", loopEnd - loopStart); // overflow
     postSensorData("CPU Load", "", cpuLoad);
   }
   if(useRCTelem) {
@@ -148,6 +149,11 @@ void Comunicator::postTelemetry() {
     postSensorData("Level PID Roll", fc->levelRollPID);
     postSensorData("Level PID Pitch", fc->levelPitchPID);
     postSensorData("Anti Gravity", "boost", fc->iBoost);
+  }
+  if(useBatTelem) {
+    postSensorData("vBat", "Voltage", sensors->bat.vBat);
+    postSensorData("vCell", "Voltage", sensors->bat.vCell);
+    postSensorData("Cell count", "count", sensors->bat.cellCount);
   }
 }
 
@@ -233,7 +239,7 @@ void Comunicator::processSerialLine() {
       postResponse(uid, ins->getMagHardIron().toString());
     }
     if(strncmp("ACC_MUL", command, 7) == 0) {
-      postResponse(uid, ins->getAccMul().toString());
+      postResponse(uid, ins->getAccMul());
     }
     if(strncmp("GYRO_MUL", command, 8) == 0) {
       postResponse(uid, ins->getGyroMul().toString());
@@ -276,6 +282,12 @@ void Comunicator::processSerialLine() {
     }
     if(strncmp("USE_LOC_TELEM", command, 13) == 0) {
       postResponse(uid, useLocTelem);
+    }
+    if(strncmp("USE_BAT_TELEM", command, 13) == 0) {
+      postResponse(uid, useBatTelem);
+    }
+    if(strncmp("BAT_LPF", command, 7) == 0) {
+      postResponse(uid, sensors->batLpf);
     }
     if(strncmp("OVERWRITE_MOTORS", command, 16) == 0) {
       postResponse(uid, motorOverwrite);
@@ -362,6 +374,12 @@ void Comunicator::processSerialLine() {
     if(strncmp("INS_ACC_MAX_G", command, 13) == 0) {
       postResponse(uid, ins->getMaxGError());
     }
+    if(strncmp("USE_VCELL", command, 9) == 0) {
+      postResponse(uid, useCellVoltage);
+    }
+    if(strncmp("ACC_ANGLE_OFFSET", command, 16) == 0) {
+      postResponse(uid, ins->getAccAngleOffset().toString());
+    }
   }
 
   // FC_DO
@@ -394,6 +412,9 @@ void Comunicator::processSerialLine() {
     }
     if(strncmp("REBOOT", command, 12) == 0) {
       SCB_AIRCR = 0x05FA0004;
+    }
+    if(strncmp("SET_ACC_ANGLE_OFFSET", command, 20) == 0) {
+      ins->setAccAngleOffset();
     }
   }
 
@@ -439,7 +460,7 @@ void Comunicator::processSerialLine() {
     }
     if(strncmp("ACC_MUL", command, 7) == 0) {
       postResponse(uid, value);
-      ins->setAccMul(Vec3(value));
+      ins->setAccMul(Matrix3(value));
     }
     if(strncmp("GYRO_MUL", command, 8) == 0) {
       postResponse(uid, value);
@@ -500,6 +521,15 @@ void Comunicator::processSerialLine() {
     if(strncmp("QUAT_TELEM", command, 10) == 0) {
       postResponse(uid, value);
       useQuatTelem = value[0] == 't';
+      useLocTelem = value[0] == 't';
+    }
+    if(strncmp("BAT_TELEM", command, 9) == 0) {
+      postResponse(uid, value);
+      useBatTelem = value[0] == 't';
+    }
+    if(strncmp("BAT_LPF", command, 7) == 0) {
+      postResponse(uid, value);
+      sensors->batLpf = atof(value);
     }
     if(strncmp("OVERWRITE_MOTORS", command, 16) == 0) {
       postResponse(uid, value);
@@ -615,6 +645,18 @@ void Comunicator::processSerialLine() {
     if(strncmp("INS_ACC_MAX_G", command, 13) == 0) {
       postResponse(uid, value);
       ins->setMaxGError(atof(value));
+    }
+    if(strncmp("VOLTAGE_CALIB", command, 13) == 0) {
+      postResponse(uid, value);
+      sensors->calibrateBat(atof(value));
+    }
+    if(strncmp("USE_VCELL", command, 9) == 0) {
+      postResponse(uid, value);
+      useCellVoltage = value[0] == 't';
+    }
+    if(strncmp("ACC_ANGLE_OFFSET", command, 16) == 0) {
+      postResponse(uid, value);
+      ins->setAccAngleOffset(Quaternion(value));
     }
   }
 }
@@ -737,17 +779,23 @@ void Comunicator::postResponse(char* uid, PID pid) {
 }
 
 void Comunicator::saveEEPROM() {
-  Storage::write(Vec3Values::accMul, ins->getAccMul());
+  Storage::write(Matrix3Values::accMul, ins->getAccMul());
   Storage::write(Vec3Values::gyroMul, ins->getGyroMul());
 
   Storage::write(Vec3Values::accOffset, ins->getAccOffset());
   Storage::write(Vec3Values::gyroOffset, ins->getGyroOffset());
   Storage::write(Vec3Values::magHardIron, ins->getMagHardIron());
 
+  Storage::write(QuaternionValues::accAngleOffset, ins->getAccAngleOffset());
+
   Storage::write(FloatValues::accInsInf, ins->getAccInfluence());
   Storage::write(FloatValues::magInsInf, ins->gatMagInfluence());
   Storage::write(FloatValues::accLPF, ins->getAccLowpassFilter());
   Storage::write(FloatValues::gyroLPF, ins->getGyroLowpassFilter());
+
+  Storage::write(FloatValues::batLpf, sensors->batLpf);
+  Storage::write(FloatValues::batMul, sensors->vBatMul);
+  Storage::write(BoolValues::useVCell, useCellVoltage);
 
   Storage::write(BoolValues::propsIn, fc->propsIn);
   Storage::write(BoolValues::useLeds, useLeds);
@@ -779,7 +827,7 @@ void Comunicator::readEEPROM() {
   Serial.println("Reading from EEPROM");
   Serial2.println("Reading from EEPROM");
 
-  ins->setAccMul(Storage::read(Vec3Values::accMul));
+  ins->setAccMul(Storage::read(Matrix3Values::accMul));
   ins->setGyroMul(Storage::read(Vec3Values::gyroMul));
   ins->setMagSoftIron(Storage::read(Matrix3Values::magSoftIron));
 
@@ -787,14 +835,20 @@ void Comunicator::readEEPROM() {
   ins->setGyroOffset(Storage::read(Vec3Values::gyroOffset));
   ins->setMagHardIron(Storage::read(Vec3Values::magHardIron));
 
+  ins->setAccAngleOffset(Storage::read(QuaternionValues::accAngleOffset));
+
   ins->setAccInfluence(Storage::read(FloatValues::accInsInf));
   ins->setMagInfluence(Storage::read(FloatValues::magInsInf));
   ins->setAccLowpassFilter(Storage::read(FloatValues::accLPF));
   ins->setGyroLowpassFilter(Storage::read(FloatValues::gyroLPF));
 
+  sensors->batLpf = Storage::read(FloatValues::batLpf);
+  sensors->vBatMul = Storage::read(FloatValues::batMul);
+
   fc->propsIn = Storage::read(BoolValues::propsIn);
   fc->useAntiGravity = Storage::read(BoolValues::useAntiGravity);
   useLeds = Storage::read(BoolValues::useLeds);
+  useCellVoltage = Storage::read(BoolValues::useVCell);
 
   // PIDs
   fc->rateRollPID     = Storage::read(PidValues::ratePidR);
@@ -814,4 +868,23 @@ void Comunicator::readEEPROM() {
   fc->antiGravityMul = Storage::read(FloatValues::antiGravityMul);
   fc->boostSpeed = Storage::read(FloatValues::boostSpeed);
   fc->boostLpf = Storage::read(FloatValues::boostLpf);
+}
+
+void Comunicator::handleCRSFTelem() {
+  // vBat, current, mahDraw, remaining Percent
+
+  crsf->updateTelemetryBattery(useCellVoltage ? sensors->bat.vCell : sensors->bat.vBat, fc->gForce, fc->maxGForce, max(0, ((sensors->bat.vCell - 3.3) / 0.9) * 100));
+  crsf->updateTelemetryAttitude(-ins->getRoll(), -ins->getPitch(), ins->getYaw());
+  switch(fc->flightMode) {
+    case FlightMode::none: {
+      crsf->updateTelemetryFlightMode("None"); break;
+    }
+    case FlightMode::rate: {
+      crsf->updateTelemetryFlightMode("Rate"); break;
+    }
+    case FlightMode::level: {
+      crsf->updateTelemetryFlightMode("Lvl"); break;
+    }
+    case FlightMode::FlightModeSize: break;
+  }
 }

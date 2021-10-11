@@ -3,11 +3,12 @@
 #include <Maths.h>
 #include <pid.h>
 
-#define STORAGE_VERSION 31415 // 3.14159265359
+#define STORAGE_VERSION 314159 // 3.14159265359
 
 #define STORAGE_SIZE_BOOL       (sizeof(bool) * 1)
 #define STORAGE_SIZE_FLOAT      (sizeof(float) * 1)
 #define STORAGE_SIZE_VEC3       (sizeof(double) * 3)
+#define STORAGE_SIZE_QUATERNION (sizeof(double) * 4)
 #define STORAGE_SIZE_MATRIX3    (sizeof(double) * 9)
 #define STORAGE_SIZE_PID        (sizeof(float) * 6)
 
@@ -16,6 +17,8 @@ enum BoolValues {
     useLeds,
 
     useAntiGravity,
+
+    useVCell,
 
     BoolValuesCount
 };
@@ -38,6 +41,9 @@ enum FloatValues {
 
     insAccMaxG,
 
+    batLpf,
+    batMul,
+
     FloatValuesCount
 };
 
@@ -46,15 +52,22 @@ enum Vec3Values {
     gyroOffset,
     magHardIron,
 
-    accMul,
+    // accMul,
     gyroMul,
     magMul,
 
     Vec3ValuesCount
 };
 
+enum QuaternionValues {
+    accAngleOffset,
+
+    QuaternionValuesCount
+};
+
 enum Matrix3Values {
     magSoftIron,
+    accMul,
 
     Matrix3ValuesCount
 };
@@ -78,12 +91,14 @@ public:
     static bool read(BoolValues floatVal);
     static float read(FloatValues floatVal);
     static Vec3 read(Vec3Values floatVal);
+    static Quaternion read(QuaternionValues quatVal);
     static Matrix3 read(Matrix3Values matVal);
     static PID read(PidValues pidVal);
 
     static void write(BoolValues floatVal, bool flag);
     static void write(FloatValues floatVal, float val);
     static void write(Vec3Values floatVal, Vec3 vec);
+    static void write(QuaternionValues quatVal, Quaternion quat);
     static void write(Matrix3Values matVal, Matrix3 mat);
     static void write(PidValues matVal, PID mat);
 
@@ -98,6 +113,7 @@ private:
     static int boolStart();
     static int floatStart();
     static int vec3Start();
+    static int quaternionStart();
     static int matrix3Start();
     static int pidStart();
     static int size();

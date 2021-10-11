@@ -161,6 +161,8 @@ public:
 
     EulerRotation clone() const;
 
+    EulerRotation toMode(EulerMode mode);
+
     operator Matrix3() const;
 
     double getPitch();
@@ -179,6 +181,7 @@ public:
     Quaternion(double, double, double, double);
     Quaternion(const EulerRotation&);
     Quaternion(const Vec3&, double theta);
+    Quaternion(char* str);
     
     void setFromAngle(const Vec3&, double);
     void setFromEuler(const EulerRotation&);
@@ -221,6 +224,6 @@ public:
 
 
     String toString() const {
-        return String("(w=") + w + String(",x=") + x + String(",y=") + y + String(",z=") + z + String(")");
+        return String(w) + String(",") + x + String(",") + y + String(",") + z;
     }
 };

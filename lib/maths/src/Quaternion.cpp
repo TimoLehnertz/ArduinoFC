@@ -1,5 +1,12 @@
 #include "maths.h"
 
+int strpos4(const char* haystack, const char needle, int start = 0) {
+  for(int i = start; i < 100; i++) {
+    if(haystack[i] == needle) return i;
+  }
+  return -1;
+}
+
 Quaternion::Quaternion() : Rotation() {
     Quaternion f = Quaternion::getForward();
     w = f.w;
@@ -19,6 +26,22 @@ Quaternion::Quaternion(const Vec3 &v) : Rotation(v) {}
 Quaternion::Quaternion(const Vec3 &v, double theta) : Rotation() {
     setFromAngle(v, theta);
     normalize();
+}
+
+Quaternion::Quaternion(char* str) : Rotation(){
+    if(strlen(str) < 7) return;
+    int delim1 = strpos4(str, ',');
+    str[delim1] = 0;
+    int delim2 = strpos4(str, ',', delim1 + 1);
+    str[delim2] = 0;
+    int delim3 = strpos4(str, ',', delim2 + 1);
+    str[delim3] = 0;
+    int delim4 = strpos4(str, ',', delim3 + 1);
+    str[delim4] = 0;
+    w = atof(str + delim1 + 1);
+    x = atof(str + delim2 + 1);
+    y = atof(str + delim3 + 1);
+    z = atof(str + delim4 + 1);
 }
 
 void Quaternion::setFromAngle(const Vec3 &v, double theta) {
@@ -194,10 +217,15 @@ void Quaternion::rotate(Vec3 &v) const {
 }
 
 void Quaternion::rotateReverse(Vec3 &v) const {
+    double len = v.getLength();
+    // v.x *= -1;
+    v /= len;
     Quaternion p(v);
     Quaternion q = clone().conjugate();
     q.normalize();
     q *= p;
     q.multiply(clone().normalize());
     v.setFrom(q);
+    // v.x *= -1;
+    v *= len;
 }
