@@ -89,6 +89,8 @@ public:
     Quaternion getAccAngleOffset() {return accAngleOffset;}
 
 private:
+    bool useIMUFiltering = false;
+
     long readingVersion = 0; //counter that gets incremented everytime a an update occours
 //  Processing
     void processFilteredAcc(const Vec3&, uint32_t);

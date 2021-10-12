@@ -65,7 +65,11 @@ void INS::updateAcc(double x, double y, double z, uint32_t deltaT) {
     lastRawAcc = lastRawAccs[lastRawAccCount];
     lastRawAccCount = (lastRawAccCount + 1) % saveCounts;
 
-    lastFilteredAcc = filterAcc(lastRawAcc);
+    if(useIMUFiltering) {
+        lastFilteredAcc = filterAcc(lastRawAcc);
+    } else {
+        lastFilteredAcc = lastRawAcc.clone();
+    }
 
     processFilteredAcc(lastFilteredAcc, deltaT);
 
@@ -74,7 +78,11 @@ void INS::updateAcc(double x, double y, double z, uint32_t deltaT) {
 
 void INS::updateMag(double x, double y, double z, uint32_t deltaT) {
     lastRawMag = Vec3(x, y, z);
-    lastFilteredMag = filterMag(lastRawMag);
+    if(useIMUFiltering) {
+        lastFilteredMag = filterMag(lastRawMag);
+    } else {
+        lastFilteredMag = lastRawMag.clone();
+    }
     processFilteredMag(lastFilteredMag);
 }
 
@@ -91,8 +99,11 @@ void INS::updateGyro(double x, double y, double z, uint32_t deltaT) {
     }
     lastRawGyro = lastRawGyros[lastRawGyroCount];
     lastRawGyroCount = (lastRawGyroCount + 1) % saveCounts;
-
-    lastFilteredGyro = filterGyro(lastRawGyro);
+    if(useIMUFiltering) {
+        lastFilteredGyro = filterGyro(lastRawGyro);
+    } else {
+        lastFilteredGyro = lastRawGyro.clone();
+    }
 
     processFilteredGyro(lastFilteredGyro, deltaT);
 }

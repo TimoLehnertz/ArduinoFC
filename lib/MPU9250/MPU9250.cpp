@@ -1200,35 +1200,35 @@ void MPU9250::getMotion6(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int
     *gz = (((int16_t)buffer[12]) << 8) | buffer[13];
 }
 
-int MPU9250::getMotion9(float* ax, float* ay, float* az, float* gx, float* gy, float* gz, float* mx, float* my, float* mz) {
-    uint8_t buffer[20];
-    _useSPIHS = true;
-    int res = readRegisters(ACCEL_OUT, 20, buffer);
-    int iax, iay, iaz, igx, igy, igz, imx, imy, imz;
-    _useSPIHS = false;
-    // combine to int16_t
-    iax = (((int16_t)buffer[0])  << 8) | buffer[1];
-    iay = (((int16_t)buffer[2])  << 8) | buffer[3];
-    iaz = (((int16_t)buffer[4])  << 8) | buffer[5];
-    igx = (((int16_t)buffer[8])  << 8) | buffer[9];
-    igy = (((int16_t)buffer[10]) << 8) | buffer[11];
-    igz = (((int16_t)buffer[12]) << 8) | buffer[13];
-    imx = (((int16_t)buffer[15]) << 8) | buffer[14];
-    imy = (((int16_t)buffer[17]) << 8) | buffer[16];
-    imz = (((int16_t)buffer[19]) << 8) | buffer[18];
+// int MPU9250::getMotion9(float* ax, float* ay, float* az, float* gx, float* gy, float* gz, float* mx, float* my, float* mz) {
+//     uint8_t buffer[20];
+//     _useSPIHS = true;
+//     int res = readRegisters(ACCEL_OUT, 20, buffer);
+//     int iax, iay, iaz, igx, igy, igz, imx, imy, imz;
+//     _useSPIHS = false;
+//     // combine to int16_t
+//     iax = (((int16_t)buffer[0])  << 8) | buffer[1];
+//     iay = (((int16_t)buffer[2])  << 8) | buffer[3];
+//     iaz = (((int16_t)buffer[4])  << 8) | buffer[5];
+//     igx = (((int16_t)buffer[8])  << 8) | buffer[9];
+//     igy = (((int16_t)buffer[10]) << 8) | buffer[11];
+//     igz = (((int16_t)buffer[12]) << 8) | buffer[13];
+//     imx = (((int16_t)buffer[15]) << 8) | buffer[14];
+//     imy = (((int16_t)buffer[17]) << 8) | buffer[16];
+//     imz = (((int16_t)buffer[19]) << 8) | buffer[18];
 
-    // Transform
-    *ax = (((float)(tX[0]*iax + tX[1]*iay + tX[2]*iaz) * _accelScale) - _axb)*_axs;
-    *ay = (((float)(tY[0]*iax + tY[1]*iay + tY[2]*iaz) * _accelScale) - _ayb)*_ays;
-    *az = (((float)(tZ[0]*iax + tZ[1]*iay + tZ[2]*iaz) * _accelScale) - _azb)*_azs;
-    *gx = ((float)(tX[0]*_gxcounts + tX[1]*_gycounts + tX[2]*_gzcounts) * _gyroScale) - _gxb;
-    *gy = ((float)(tY[0]*_gxcounts + tY[1]*_gycounts + tY[2]*_gzcounts) * _gyroScale) - _gyb;
-    *gz = ((float)(tZ[0]*_gxcounts + tZ[1]*_gycounts + tZ[2]*_gzcounts) * _gyroScale) - _gzb;
-    *mx = (((float)(_hxcounts) * _magScaleX) - _hxb)*_hxs;
-    *my = (((float)(_hycounts) * _magScaleY) - _hyb)*_hys;
-    *mz = (((float)(_hzcounts) * _magScaleZ) - _hzb)*_hzs;
+//     // Transform
+//     *ax = (((float)(tX[0]*iax + tX[1]*iay + tX[2]*iaz) * _accelScale) - _axb)*_axs;
+//     *ay = (((float)(tY[0]*iax + tY[1]*iay + tY[2]*iaz) * _accelScale) - _ayb)*_ays;
+//     *az = (((float)(tZ[0]*iax + tZ[1]*iay + tZ[2]*iaz) * _accelScale) - _azb)*_azs;
+//     *gx = ((float)(tX[0]*_gxcounts + tX[1]*_gycounts + tX[2]*_gzcounts) * _gyroScale) - _gxb;
+//     *gy = ((float)(tY[0]*_gxcounts + tY[1]*_gycounts + tY[2]*_gzcounts) * _gyroScale) - _gyb;
+//     *gz = ((float)(tZ[0]*_gxcounts + tZ[1]*_gycounts + tZ[2]*_gzcounts) * _gyroScale) - _gzb;
+//     *mx = (((float)(_hxcounts) * _magScaleX) - _hxb)*_hxs;
+//     *my = (((float)(_hycounts) * _magScaleY) - _hyb)*_hys;
+//     *mz = (((float)(_hzcounts) * _magScaleZ) - _hzb)*_hzs;
 
-    return res;
-}
+//     return res;
+// }
 
 // jihlein additions end

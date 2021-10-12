@@ -172,23 +172,26 @@ void Storage::writeDefaults() {
     write(FloatValues::iRelaxMinRate, I_RELAX_MIN_RATE);
 
     write(Vec3Values::accOffset,    Vec3(-0.421501f, 0.043717f, -0.276401f));
+    write(Vec3Values::accScale,     Vec3(1, 1, 1));
     write(Vec3Values::gyroOffset,   Vec3(0.0f, 0.0f, 0.0f));
     write(Vec3Values::magHardIron,  Vec3(155.874587f, -6.118738f, 42.876593f));
+    write(Vec3Values::magOffset,    Vec3(0, 0, 0));
+    write(Vec3Values::magScale,     Vec3(1, 1, 1));
 
 
     write(QuaternionValues::accAngleOffset,  Quaternion());
 
 
-    write(Matrix3Values::accMul, Matrix3(   0.997863f, 0.001927f, 0.001743f,
-                                            0.001927f, 0.997373f, -0.000326f,
-                                            0.001743f, -0.000326f, 0.988860f));
+    // write(Matrix3Values::accMul, Matrix3(   0.997863f, 0.001927f, 0.001743f,
+    //                                         0.001927f, 0.997373f, -0.000326f,
+    //                                         0.001743f, -0.000326f, 0.988860f));
 
-    write(Vec3Values::gyroMul,  Vec3(1.0f, 1.0f, 1.0f));
+    // write(Vec3Values::gyroMul,  Vec3(1.0f, 1.0f, 1.0f));
     write(Vec3Values::magMul,   Vec3(1.0f, 1.0f, 1.0f));
 
-    write(Matrix3Values::magSoftIron, Matrix3(  0.665105f, 0.034308f, 0.031915f,
-                                                0.034308f, 0.702825f, 0.016322f,
-                                                0.031915f, 0.016322f, 0.713672f));
+    // write(Matrix3Values::magSoftIron, Matrix3(  0.665105f, 0.034308f, 0.031915f,
+    //                                             0.034308f, 0.702825f, 0.016322f,
+    //                                             0.031915f, 0.016322f, 0.713672f));
 
     Serial.println("Wrote defaults into EEPROM");
     Serial2.println("Wrote defaults into EEPROM");

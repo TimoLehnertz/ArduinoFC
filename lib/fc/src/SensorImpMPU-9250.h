@@ -5,6 +5,9 @@
 #include <TinyGPS++.h>
 #include <MPU9250.h>
 #include <error.h>
+#include <maths.h>
+
+#define G 9.807
 
 /**
  * VCC MPU9250                  : 5V
@@ -36,7 +39,6 @@ public:
     uint32_t lastBaro = 0;
 
     MPU9250 mpu9250;
-
 
     MPU9250Sensor() : mpu9250(SPI, 10) {}
     
@@ -103,6 +105,48 @@ public:
             Serial.println("Succsessfully initiated IMU9250");
         }
     }
+
+    /**
+     * Crap dont use
+     */
+    void setAccCal(Vec3 gVecOffset, Vec3 scale) {
+        mpu9250.setAccelCalX(gVecOffset.x / G, scale.x);
+        mpu9250.setAccelCalY(gVecOffset.y / G, scale.y);
+        mpu9250.setAccelCalZ(gVecOffset.z / G, scale.z);
+    }
+
+    void setGyroCal(Vec3 degVecOffset) {
+        degVecOffset.toRad();
+        mpu9250.setGyroBiasX_rads(degVecOffset.x);
+        mpu9250.setGyroBiasY_rads(degVecOffset.y);
+        mpu9250.setGyroBiasZ_rads(degVecOffset.z);
+    }
+
+     void setMagCal(Vec3 offset, Vec3 scale) {
+        mpu9250.setMagCalX(offset.x, scale.x);
+        mpu9250.setMagCalY(offset.y, scale.y);
+        mpu9250.setMagCalZ(offset.z, scale.z);
+    }
+
+    Vec3 getAccOffset() {
+        return Vec3(mpu9250.getAccelBiasX_mss() / G, mpu9250.getAccelBiasY_mss() / G, mpu9250.getAccelBiasZ_mss() / G);
+    }
+
+    Vec3 getAccScale() {
+        return Vec3(mpu9250.getAccelScaleFactorX() / G, mpu9250.getAccelScaleFactorY(), mpu9250.getAccelScaleFactorZ());
+    }
+
+    Vec3 getGyroOffset() {
+        return Vec3(mpu9250.getGyroBiasX_rads() * RAD_TO_DEG, mpu9250.getGyroBiasY_rads() * RAD_TO_DEG, mpu9250.getGyroBiasZ_rads() * RAD_TO_DEG);
+    }
+
+     Vec3 getMagOffset() {
+        return Vec3(mpu9250.getMagBiasX_uT(), mpu9250.getMagBiasY_uT(), mpu9250.getMagBiasZ_uT());
+     }
+
+     Vec3 getMagScale() {
+        return Vec3(mpu9250.getMagScaleFactorX(), mpu9250.getMagScaleFactorY(), mpu9250.getMagScaleFactorZ());
+     }
 
     void handle() {
         /**
@@ -183,6 +227,28 @@ public:
 
         bat.vCell = bat.vBat / bat.cellCount;
         bat.lastChange = micros();
+    }
+
+    /**
+     * crap dont use
+     * (blocks for 2 seconds)
+     */
+    void calibrateAcc() {
+        mpu9250.calibrateAccel();
+    }
+
+    /**
+     * Blocks for 2 seconds
+     */
+    void calibrateGyro() {
+        mpu9250.calibrateGyro();
+    }
+
+    /**
+     * Blocks for 20 seconds
+     */
+    void calibrateMag() {
+        mpu9250.calibrateMag();
     }
 
     void calibrateBat(float actualVoltage) {

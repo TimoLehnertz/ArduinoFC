@@ -2,6 +2,7 @@
 #include <EEPROM.h>
 #include "Comunicator.h"
 #include <maths.h>
+#include <error.h>
 
 int strpos3(const char* haystack, const char needle, int start = 0) {
   for(int i = start; i < 100; i++) {
@@ -86,7 +87,7 @@ void Comunicator::postTelemetry() {
     postSensorData("ACC(f)", "Z", ins->getLastFilteredAcc().z);
   }
 
-  if(sensors->mag.connected && useMagTelem) {
+  if(useMagTelem) {
     postSensorData("MAG", "X", sensors->mag.x);
     postSensorData("MAG", "Y", sensors->mag.y);
     postSensorData("MAG", "Z", sensors->mag.z);
@@ -96,13 +97,13 @@ void Comunicator::postTelemetry() {
     postSensorData("MAG(f)", "Z", ins->getLastFilteredMag().z);
   }
 
-  if(sensors->baro.connected && useBaroTelem) {
+  if(useBaroTelem) {
     postSensorData("BARO", "Alt", sensors->baro.altitude);
     postSensorData("BARO(f)", "Alt", ins->getLastFilteredBaroAltitude());
     postSensorData("BARO(speed)", "Alt", ins->getBaroAltSpd());
   }
 
-  if(sensors->gps.connected && useGpsTelem) {
+  if(useGpsTelem) {
     if(sensors->gps.locationValid) {
       postSensorData("GPS", "LAT", sensors->gps.lat);
       postSensorData("GPS", "LNG", sensors->gps.lng);
@@ -380,19 +381,40 @@ void Comunicator::processSerialLine() {
     if(strncmp("ACC_ANGLE_OFFSET", command, 16) == 0) {
       postResponse(uid, ins->getAccAngleOffset().toString());
     }
+    if(strncmp("ACC_OFFSET_MPU", command, 14) == 0) {
+      postResponse(uid, sensors->getAccOffset().toString());
+    }
+    if(strncmp("ACC_SCALE_MPU", command, 13) == 0) {
+      postResponse(uid, sensors->getAccScale().toString());
+    }
+    if(strncmp("MAG_OFFSET_MPU", command, 14) == 0) {
+      postResponse(uid, sensors->getMagOffset().toString());
+    }
+    if(strncmp("MAG_SCALE_MPU", command, 13) == 0) {
+      postResponse(uid, sensors->getMagScale().toString());
+    }
   }
 
   // FC_DO
   if(bufferCount > 6 && strncmp("FC_DO_", buffer, 6) == 0) {
     command = buffer + 6;
     if(strncmp("ACC_CALIB", command, 9) == 0) {
-      ins->calibrateAcc();
+      Serial.println("Calibrating Accelerometer");
+      sensors->calibrateAcc();
+      Serial.println("Done!");
+      // ins->calibrateAcc();
     }
     if(strncmp("GYRO_CALIB", command, 10) == 0) {
-      ins->calibrateGyro();
+      Serial.println("Calibrating Gyroscope");
+      sensors->calibrateGyro();
+      Serial.println("Done!");
+      // ins->calibrateGyro();
     }
     if(strncmp("MAG_CALIB", command, 9) == 0) {
-        useMagTelem = true;
+        Serial.println("Calibrating magnetometer");
+        sensors->calibrateMag();
+        Serial.println("Done!");
+        // useMagTelem = true;
     }
     if(strncmp("STOP_MAG_CALIB", command, 14) == 0) {
         useMagTelem = false;
@@ -413,7 +435,7 @@ void Comunicator::processSerialLine() {
     if(strncmp("REBOOT", command, 12) == 0) {
       SCB_AIRCR = 0x05FA0004;
     }
-    if(strncmp("SET_ACC_ANGLE_OFFSET", command, 20) == 0) {
+    if(strncmp("ACC_ANGLE_OFFSET", command, 16) == 0) {
       ins->setAccAngleOffset();
     }
   }
@@ -637,7 +659,7 @@ void Comunicator::processSerialLine() {
       int fm = atoi(value);
       if(fm >= 0 && fm < FlightMode::FlightModeSize) {
         postResponse(uid, value);
-        fc->overwriteFlightMode = FlightMode::FlightModes(fm);
+        fc->overwriteFlightMode = FlightMode::FlightMode_t(fm);
       } else {
         fc->overwriteFlightMode = FlightMode::none;
       }
@@ -657,6 +679,22 @@ void Comunicator::processSerialLine() {
     if(strncmp("ACC_ANGLE_OFFSET", command, 16) == 0) {
       postResponse(uid, value);
       ins->setAccAngleOffset(Quaternion(value));
+    }
+    if(strncmp("ACC_OFFSET_MPU", command, 14) == 0) {
+      postResponse(uid, value);
+      sensors->setAccCal(Vec3(value), sensors->getAccScale());
+    }
+    if(strncmp("ACC_SCALE_MPU", command, 13) == 0) {
+      postResponse(uid, value);
+      sensors->setAccCal(sensors->getAccOffset(), Vec3(value));
+    }
+    if(strncmp("MAG_OFFSET_MPU", command, 14) == 0) {
+      postResponse(uid, value);
+      sensors->setMagCal(Vec3(value), sensors->getMagScale());
+    }
+    if(strncmp("MAG_SCALE_MPU", command, 13) == 0) {
+      postResponse(uid, value);
+      sensors->setMagCal(sensors->getMagOffset(), Vec3(value));
     }
   }
 }
@@ -779,12 +817,18 @@ void Comunicator::postResponse(char* uid, PID pid) {
 }
 
 void Comunicator::saveEEPROM() {
-  Storage::write(Matrix3Values::accMul, ins->getAccMul());
-  Storage::write(Vec3Values::gyroMul, ins->getGyroMul());
+  // Storage::write(Matrix3Values::accMul, ins->getAccMul());
+  // Storage::write(Vec3Values::gyroMul, ins->getGyroMul());
 
-  Storage::write(Vec3Values::accOffset, ins->getAccOffset());
-  Storage::write(Vec3Values::gyroOffset, ins->getGyroOffset());
-  Storage::write(Vec3Values::magHardIron, ins->getMagHardIron());
+  // Storage::write(Vec3Values::accOffset, ins->getAccOffset());
+  // Storage::write(Vec3Values::gyroOffset, ins->getGyroOffset());
+  // Storage::write(Vec3Values::magHardIron, ins->getMagHardIron());
+
+  Storage::write(Vec3Values::accOffset,  sensors->getAccOffset());
+  Storage::write(Vec3Values::accScale,  sensors->getAccScale());
+  Storage::write(Vec3Values::gyroOffset, sensors->getGyroOffset());
+  Storage::write(Vec3Values::magOffset, sensors->getMagOffset());
+  Storage::write(Vec3Values::magScale, sensors->getMagScale());
 
   Storage::write(QuaternionValues::accAngleOffset, ins->getAccAngleOffset());
 
@@ -812,7 +856,7 @@ void Comunicator::saveEEPROM() {
 
   Storage::write(FloatValues::insAccMaxG, ins->getMaxGError());
 
-  Storage::write(Matrix3Values::magSoftIron, ins->getMagSoftIron());
+  // Storage::write(Matrix3Values::magSoftIron, ins->getMagSoftIron());
 
   Storage::write(FloatValues::loopFreqRate, loopFreqRate);
   Storage::write(FloatValues::loopFreqLevel, loopFreqLevel);
@@ -827,13 +871,21 @@ void Comunicator::readEEPROM() {
   Serial.println("Reading from EEPROM");
   Serial2.println("Reading from EEPROM");
 
-  ins->setAccMul(Storage::read(Matrix3Values::accMul));
-  ins->setGyroMul(Storage::read(Vec3Values::gyroMul));
-  ins->setMagSoftIron(Storage::read(Matrix3Values::magSoftIron));
+  // ins->setAccMul(Storage::read(Matrix3Values::accMul));
+  // ins->setGyroMul(Storage::read(Vec3Values::gyroMul));
+  // ins->setMagSoftIron(Storage::read(Matrix3Values::magSoftIron));
 
-  ins->setAccOffset(Storage::read(Vec3Values::accOffset));
-  ins->setGyroOffset(Storage::read(Vec3Values::gyroOffset));
-  ins->setMagHardIron(Storage::read(Vec3Values::magHardIron));
+  /**
+   * Sensor Interface calibration
+   */
+  sensors->setAccCal (Storage::read(Vec3Values::accOffset), Storage::read(Vec3Values::accScale));
+  sensors->setGyroCal(Storage::read(Vec3Values::gyroOffset));
+  sensors->setMagCal (Storage::read(Vec3Values::magOffset), Storage::read(Vec3Values::magScale));
+
+
+  // ins->setAccOffset(Storage::read(Vec3Values::accOffset));
+  // ins->setGyroOffset(Storage::read(Vec3Values::gyroOffset));
+  // ins->setMagHardIron(Storage::read(Vec3Values::magHardIron));
 
   ins->setAccAngleOffset(Storage::read(QuaternionValues::accAngleOffset));
 
@@ -884,6 +936,12 @@ void Comunicator::handleCRSFTelem() {
     }
     case FlightMode::level: {
       crsf->updateTelemetryFlightMode("Lvl"); break;
+    }
+    case FlightMode::altitudeHold: {
+      crsf->updateTelemetryFlightMode("alt"); break;
+    }
+    case FlightMode::gpsHold: {
+      crsf->updateTelemetryFlightMode("gps"); break;
     }
     case FlightMode::FlightModeSize: break;
   }

@@ -1,6 +1,7 @@
 #pragma once
 #include <error.h>
 #include <flightModes.h>
+#include <maths.h>
 
 /**
  * General data type for all sensors on board
@@ -13,7 +14,7 @@ struct Sensor {
     FlightMode::FlightMode_t minFlightMode;
 
     Sensor(FlightMode::FlightMode_t minFlightMode) : minFlightMode(minFlightMode) {}
-    
+
     virtual void checkError() = 0;
 };
 
@@ -128,9 +129,10 @@ struct GPS : public Sensor{
     GPS() : Sensor(FlightMode::gpsHold) {}
 
     void checkError() {
-        if(lastLat == lat && lastLng == lng) {
-            similarCount++;
-            if(similarCount)
+        if(micros() - lastChange > 2000000) { // 2 sek timeout
+            error = Error::CRITICAL_ERROR;
+        } else {
+            error = Error::NO_ERROR;
         }
     }
 };
@@ -183,6 +185,20 @@ public:
 
     virtual void begin() = 0;
     virtual void handle() = 0;
+
+    virtual void setAccCal (Vec3 gVecOffset, Vec3 scale)  = 0;
+    virtual void setGyroCal(Vec3 degVecOffset) = 0;
+    virtual void setMagCal (Vec3 offset, Vec3 scale)  = 0;
+
+    virtual void calibrateAcc() = 0;
+    virtual void calibrateGyro() = 0;
+    virtual void calibrateMag() = 0;
+
+    virtual Vec3 getAccOffset() = 0;
+    virtual Vec3 getAccScale() = 0;
+    virtual Vec3 getGyroOffset() = 0;
+    virtual Vec3 getMagOffset() = 0;
+    virtual Vec3 getMagScale() = 0;
 
     virtual void calibrateBat(float actualVoltage) = 0;
 

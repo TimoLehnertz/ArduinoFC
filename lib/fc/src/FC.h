@@ -54,8 +54,8 @@
 class FC {
 public:
 
-    FlightMode::FlightModes flightMode = FlightMode::rate;
-    FlightMode::FlightModes overwriteFlightMode = FlightMode::none;
+    FlightMode::FlightMode_t flightMode = FlightMode::rate;
+    FlightMode::FlightMode_t overwriteFlightMode = FlightMode::none;
 
     float maxAngle = 20;
     bool propsIn = true;
