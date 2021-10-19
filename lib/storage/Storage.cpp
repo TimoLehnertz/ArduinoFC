@@ -144,7 +144,7 @@ void Storage::writeDefaults() {
     PID levelP_PID   (LEVEL_PID_PP,  LEVEL_PID_PI, LEVEL_PID_PD, LEVEL_PID_PD_LPF, LEVEL_PID_P_MAX);
     PID levelY_PID   (LEVEL_PID_YP,  LEVEL_PID_YI, LEVEL_PID_YD, LEVEL_PID_YD_LPF, LEVEL_PID_Y_MAX);
 
-    write(FloatValues::insAccMaxG, INS_MAX_G_ERROR);
+    write(FloatValues::insAccMaxG, 0.2);
     write(FloatValues::accLPF, 0.8f);
     write(FloatValues::gyroLPF, 1.0f);
     write(FloatValues::accInsInf, 0.007f);
@@ -154,6 +154,8 @@ void Storage::writeDefaults() {
     write(FloatValues::boostSpeed, 40.0f);
     write(FloatValues::batLpf, 0.001f);
     write(FloatValues::batMul, 11.9f);
+
+    write(FloatValues::insSensorFusion, 0.0f);
 
     /**
      * PIDs
@@ -171,27 +173,14 @@ void Storage::writeDefaults() {
 
     write(FloatValues::iRelaxMinRate, I_RELAX_MIN_RATE);
 
-    write(Vec3Values::accOffset,    Vec3(-0.421501f, 0.043717f, -0.276401f));
-    write(Vec3Values::accScale,     Vec3(1, 1, 1));
-    write(Vec3Values::gyroOffset,   Vec3(0.0f, 0.0f, 0.0f));
-    write(Vec3Values::magHardIron,  Vec3(155.874587f, -6.118738f, 42.876593f));
-    write(Vec3Values::magOffset,    Vec3(0, 0, 0));
-    write(Vec3Values::magScale,     Vec3(1, 1, 1));
+    write(Vec3Values::accOffset,    Vec3(-0.1754f, -0.2355f, 0.1227f));
+    write(Vec3Values::accScale,     Vec3(0.9971, 0.9975, 0.9928));
+    write(Vec3Values::gyroOffset,   Vec3(1.5007f, 0.2541f, 0.2211f));
+    write(Vec3Values::magOffset,    Vec3(6.5348, 10.6397, -43.9933));
+    write(Vec3Values::magScale,     Vec3(1.0142, 1.0106, 0.9761));
 
 
     write(QuaternionValues::accAngleOffset,  Quaternion());
-
-
-    // write(Matrix3Values::accMul, Matrix3(   0.997863f, 0.001927f, 0.001743f,
-    //                                         0.001927f, 0.997373f, -0.000326f,
-    //                                         0.001743f, -0.000326f, 0.988860f));
-
-    // write(Vec3Values::gyroMul,  Vec3(1.0f, 1.0f, 1.0f));
-    write(Vec3Values::magMul,   Vec3(1.0f, 1.0f, 1.0f));
-
-    // write(Matrix3Values::magSoftIron, Matrix3(  0.665105f, 0.034308f, 0.031915f,
-    //                                             0.034308f, 0.702825f, 0.016322f,
-    //                                             0.031915f, 0.016322f, 0.713672f));
 
     Serial.println("Wrote defaults into EEPROM");
     Serial2.println("Wrote defaults into EEPROM");

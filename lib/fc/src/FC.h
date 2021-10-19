@@ -7,6 +7,7 @@
 // #include <pid.h>
 #include "../../pid/pid.h"
 #include "flightModes.h"
+#include "error.h"
 
 /**
  * Default pids
@@ -286,21 +287,26 @@ private:
             flightMode = FlightMode::rate;
         }
 
-        switch(flightMode) {
-            case FlightMode::rate: {
-                ins->sensors->useAcc = true;
-                ins->sensors->useMag = true;
-                break;
-            }
-            case FlightMode::level: {
-                ins->sensors->useAcc = true;
-                ins->sensors->useMag = true;
-            }
-            default: {
-                ins->sensors->useAcc = true;
-                ins->sensors->useMag = true;
-            }
-        }
+        /**
+         * Never use flight mode with unsufficient sensors
+         */
+        flightMode = FlightMode::FlightMode_t(min(flightMode, ins->sensors->getHighestFM(Error::WARNING)));
+
+        // switch(flightMode) {
+        //     case FlightMode::rate: {
+        //         ins->sensors->useAcc = true;
+        //         ins->sensors->useMag = true;
+        //         break;
+        //     }
+        //     case FlightMode::level: {
+        //         ins->sensors->useAcc = true;
+        //         ins->sensors->useMag = true;
+        //     }
+        //     default: {
+        //         ins->sensors->useAcc = true;
+        //         ins->sensors->useMag = true;
+        //     }
+        // }
     }
 
     void handleArm() {

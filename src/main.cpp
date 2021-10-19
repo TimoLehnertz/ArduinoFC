@@ -45,36 +45,6 @@ void handleLoopFreq() {
   com.actualFreq = 1000000 / (micros() - com.loopStart);
 }
 
- /**
- * 0 => No error
- * 
- * 1 => IMU error
- */
-int error = 0;
-
-Vec3 lastGyro = Vec3();
-int sameGyros = 0;
-void watchDog() {
-  error = 0;
-  /**
-   * check if raw imu data is changing and if not for 100 cycles raise critical error
-   */
-  if(sensors.gyro.x == lastGyro.x && sensors.gyro.y == lastGyro.y && sensors.gyro.z == lastGyro.z) {
-    sameGyros++;
-    if(sameGyros >= 1000) {
-      sameGyros = 1000;
-      if(millis() % 100 == 0) {
-        Serial.println("IMU error! Too many similar gyro readings. Check wiring");
-      }
-      error = 1;
-      sensors.initMPU9250();
-    }
-  } else {
-    lastGyro = Vec3(sensors.gyro.x, sensors.gyro.y, sensors.gyro.z);
-    sameGyros = 0;
-  }
-}
-
 // void handleLeds() {
 //     if(error > 0) {
 //       Serial.print("error! Code:");
@@ -157,6 +127,7 @@ void setup() {
   sensors.begin();
   fc.begin();
   com.readEEPROM();
+  ins.begin();
   bootTime = millis();
   Serial.print("Booting time: ");
   Serial.println(bootTime);
@@ -196,7 +167,7 @@ void loop() {
   }
   com.fcTime = micros();
   com.handle();
-  watchDog();
+  // watchDog();
   com.loopEnd = micros();
   handleLoopFreq();
 }

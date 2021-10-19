@@ -16,27 +16,42 @@ struct Sensor {
     Sensor(FlightMode::FlightMode_t minFlightMode) : minFlightMode(minFlightMode) {}
 
     virtual void checkError() = 0;
+
+    bool isError() {
+        return error == Error::CRITICAL_ERROR;
+    }
 };
 
 struct Vec3Sensor : public Sensor {
     float x, y, z, lastX, lastY, lastZ;
     int similarCount;
+    Vec3 last;
+    float lpf = 1.0f;
 
     Vec3Sensor(FlightMode::FlightMode_t minFlightMode) : Sensor(minFlightMode), similarCount(0) {}
 
     void update(float x1, float y1, float z1) {
         if(x1 != x || y1 != y || z1 != z) {
             lastChange = micros();
-            x = x1;
-            y = y1;
-            z = z1;
+            x = x1 * lpf + (1 - lpf) * last.x;
+            y = y1 * lpf + (1 - lpf) * last.y;
+            z = z1 * lpf + (1 - lpf) * last.z;
+            last = Vec3(x, y, z);
         }
+    }
+
+    Vec3 getVec3() {
+        return Vec3(x, y, z);
     }
 
     /**
      * check if sensor readings change and if not for 100 readings raise CRITICAL_ERROR
      */
     void checkError() {
+        if(micros() - lastChange > 100000) {//100ms
+            error = Error::CRITICAL_ERROR;
+            return;
+        }
         if(x == lastX && y == lastY && z == lastZ) {
             similarCount++;
             if(similarCount >= 100) {
@@ -153,6 +168,17 @@ struct Battery : public Sensor {
  */
 class SensorInterface {
 public:
+    /**
+     * Enum used for accelerometer calibration
+     */
+    enum Side {
+        bottom = 0,
+        left = 1,
+        right = 2,
+        front = 3,
+        back = 4,
+        top = 5
+    };
 
     bool useAcc = true;
     bool useMag = true;
@@ -174,6 +200,9 @@ public:
     float batLpf = 0.001;
     float vBatMul = 11.8;
 
+    float accLpf = 1.0f;
+    float gyroLpf = 1.0f;
+
     SensorInterface() {
         sensors[0] = &acc;
         sensors[1] = &gyro;
@@ -190,6 +219,8 @@ public:
     virtual void setGyroCal(Vec3 degVecOffset) = 0;
     virtual void setMagCal (Vec3 offset, Vec3 scale)  = 0;
 
+    virtual void calibrateAccQuick() = 0;
+    virtual void calibrateAccSide(Side side) = 0;
     virtual void calibrateAcc() = 0;
     virtual void calibrateGyro() = 0;
     virtual void calibrateMag() = 0;
@@ -209,7 +240,7 @@ public:
         FlightMode::FlightMode_t fm = FlightMode::gpsHold;
         for (size_t i = 0; i < sensorCount; i++) {
             if(sensors[i]->error > maxError) {
-                fm = min(fm, sensors[i]->minFlightMode);
+                fm = FlightMode::FlightMode_t(min(fm, sensors[i]->minFlightMode - 1));
             }
         }
         return fm;

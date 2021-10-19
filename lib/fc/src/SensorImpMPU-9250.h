@@ -85,10 +85,13 @@ public:
     void initMPU9250() {
         int status = mpu9250.begin();
         if (status < 0) {
-            Serial.println("MPU9250 initialization unsuccessful");
-            Serial.println("Check MPU9250 wiring");
-            Serial.print("Status: ");
-            Serial.println(status);
+            if(!mpuErrorPrinted) {
+                Serial.println("MPU9250 initialization unsuccessful");
+                Serial.println("Check MPU9250 wiring");
+                Serial.print("Status: ");
+                Serial.println(status);
+                mpuErrorPrinted = true;
+            }
             acc.error  = Error::CRITICAL_ERROR;
             gyro.error = Error::CRITICAL_ERROR;
             mag.error  = Error::CRITICAL_ERROR;
@@ -106,13 +109,10 @@ public:
         }
     }
 
-    /**
-     * Crap dont use
-     */
     void setAccCal(Vec3 gVecOffset, Vec3 scale) {
-        mpu9250.setAccelCalX(gVecOffset.x / G, scale.x);
-        mpu9250.setAccelCalY(gVecOffset.y / G, scale.y);
-        mpu9250.setAccelCalZ(gVecOffset.z / G, scale.z);
+        mpu9250.setAccelCalX(gVecOffset.x * G, scale.x);
+        mpu9250.setAccelCalY(gVecOffset.y * G, scale.y);
+        mpu9250.setAccelCalZ(gVecOffset.z * G, scale.z);
     }
 
     void setGyroCal(Vec3 degVecOffset) {
@@ -133,7 +133,7 @@ public:
     }
 
     Vec3 getAccScale() {
-        return Vec3(mpu9250.getAccelScaleFactorX() / G, mpu9250.getAccelScaleFactorY(), mpu9250.getAccelScaleFactorZ());
+        return Vec3(mpu9250.getAccelScaleFactorX(), mpu9250.getAccelScaleFactorY(), mpu9250.getAccelScaleFactorZ());
     }
 
     Vec3 getGyroOffset() {
@@ -154,7 +154,7 @@ public:
          */
         mpu9250.readSensor();
         acc.update (mpu9250.getAccelX_G(), mpu9250.getAccelY_G(), -mpu9250.getAccelZ_G());
-        gyro.update(mpu9250.getGyroX_rads() * RAD_TO_DEG, mpu9250.getGyroY_rads() * RAD_TO_DEG, mpu9250.getGyroZ_rads() * RAD_TO_DEG);
+        gyro.update(mpu9250.getGyroX_rads() * RAD_TO_DEG, -mpu9250.getGyroY_rads() * RAD_TO_DEG, mpu9250.getGyroZ_rads() * RAD_TO_DEG);
         mag.update (mpu9250.getMagX_uT(), mpu9250.getMagY_uT(), mpu9250.getMagZ_uT());
 
         /**
@@ -230,25 +230,105 @@ public:
     }
 
     /**
-     * crap dont use
-     * (blocks for 2 seconds)
+     * System has to be perfectly level!
+     * Sets the acc scale to one and only calibrates the offset to level
      */
+    void calibrateAccQuick() {
+        Vec3 avg = getAccAvg(100, 20);
+        Vec3 offset = avg - Vec3(0, 0, -G);
+        mpu9250.setAccelCalX(offset.x, 1);
+        mpu9250.setAccelCalY(offset.y, 1);
+        mpu9250.setAccelCalZ(offset.z, 1);
+    }
+
+    void calibrateAccSide(Side side) {
+        accSideAvgs[side] = getAccAvg(100, 10);
+        sideCals++;
+        switch(side) {
+            case top: Serial.println("top calibrated"); break;
+            case bottom: Serial.println("bottom calibrated"); break;
+            case left: Serial.println("left calibrated"); break;
+            case right: Serial.println("right calibrated"); break;
+            case front: Serial.println("front calibrated"); break;
+            case back: Serial.println("back calibrated"); break;
+        }
+    }
+
     void calibrateAcc() {
-        mpu9250.calibrateAccel();
+        if(sideCals < 6) {
+            Serial.println("Not all sides have been calibrated. Try again!");
+            sideCals = 0;
+            return;
+        }
+        Vec3 scale;
+        scale.x = 1 / ((accSideAvgs[back].x   - accSideAvgs[front].x)  / (2.0 * G)); // 1 / ((max - min) / 2G)
+        scale.y = 1 / ((accSideAvgs[left].y   - accSideAvgs[right].y)  / (2.0 * G));
+        scale.z = 1 / ((accSideAvgs[top].z    - accSideAvgs[bottom].z) / (2.0 * G));
+
+        Vec3 offset = (accSideAvgs[bottom] * scale) - Vec3(0, 0, -G);
+
+        float error = 0;
+        float topError  = abs((accSideAvgs[top]   - Vec3(0, 0, G)).getValue());
+        float rightError= abs((accSideAvgs[right] - Vec3(0,-G, 0)).getValue());
+        float leftError = abs((accSideAvgs[left]  - Vec3(0, G, 0)).getValue());
+        float frontError= abs((accSideAvgs[front] - Vec3(-G,0, 0)).getValue());
+        float backError = abs((accSideAvgs[back]  - Vec3(G, 0, 0)).getValue());
+
+        error = topError + rightError + leftError + frontError + backError;
+
+        Serial.println("Acc calibration errors:");
+        Serial.print("top: ");
+        Serial.print(topError);
+        Serial.print(", right: ");
+        Serial.print(rightError);
+        Serial.print(", left: ");
+        Serial.print(leftError);
+        Serial.print(", front: ");
+        Serial.print(frontError);
+        Serial.print(", back: ");
+        Serial.println(backError);
+
+        Serial.print("Total error: ");
+        Serial.print(error);
+        Serial.println("Mss(9.807 = 1G)");
+
+        mpu9250.setAccelCalX(offset.x, scale.x);
+        mpu9250.setAccelCalY(offset.y, scale.y);
+        mpu9250.setAccelCalZ(offset.z, scale.z);
+
+        sideCals = 0;
+    }
+
+    Vec3 getAccAvg(uint8_t samples, int delayMs) {
+        Vec3 avg = Vec3();
+        for (size_t i = 0; i < samples; i++) {
+            mpu9250.readSensor();
+            avg += Vec3(mpu9250.getAccelX_mss(), mpu9250.getAccelY_mss(), mpu9250.getAccelZ_mss()) / (double) samples;
+            delay(20);
+        }
+        return avg;
     }
 
     /**
      * Blocks for 2 seconds
      */
     void calibrateGyro() {
-        mpu9250.calibrateGyro();
+        int error = mpu9250.calibrateGyro();
+        if(error < 1) {
+            Serial.print("Failed to calibrate Gyro. Error: ");
+            Serial.println(error);
+        }
     }
 
     /**
      * Blocks for 20 seconds
      */
     void calibrateMag() {
-        mpu9250.calibrateMag();
+        int error = mpu9250.calibrateMag();
+        if(error < 1) {
+            Serial.print("Failed to calibrate Mag. Error: ");
+            Serial.println(error);
+        }
     }
 
     void calibrateBat(float actualVoltage) {
@@ -257,5 +337,9 @@ public:
 
 private:
 
+    bool mpuErrorPrinted = false;
     float vMeasured = 1;
+
+    Vec3 accSideAvgs[6];
+    int sideCals = 0;
 };

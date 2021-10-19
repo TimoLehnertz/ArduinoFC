@@ -3,7 +3,7 @@
 #include <Maths.h>
 #include <pid.h>
 
-#define STORAGE_VERSION 3141 // 3.14159265359
+#define STORAGE_VERSION 31415 // 3.14159265359
 
 #define STORAGE_SIZE_BOOL       (sizeof(bool) * 1)
 #define STORAGE_SIZE_FLOAT      (sizeof(float) * 1)
@@ -44,6 +44,8 @@ enum FloatValues {
     batLpf,
     batMul,
 
+    insSensorFusion,
+
     FloatValuesCount
 };
 
@@ -51,12 +53,8 @@ enum Vec3Values {
     accOffset,
     accScale,
     gyroOffset,
-    magHardIron,
     magOffset,
     magScale,
-
-    // gyroMul,
-    magMul,
 
     Vec3ValuesCount
 };
@@ -68,8 +66,6 @@ enum QuaternionValues {
 };
 
 enum Matrix3Values {
-    // magSoftIron,
-    // accMul,
 
     Matrix3ValuesCount
 };

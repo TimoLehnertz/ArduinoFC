@@ -4,7 +4,6 @@
 class Vec3;
 class Quaternion;
 
-
 class Matrix3 {
 public:
     double m[9];
