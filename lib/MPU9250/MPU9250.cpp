@@ -480,17 +480,17 @@ float MPU9250::getAccelZ_mss() {
 
 /* returns the accelerometer measurement in the x direction, m/s/s */
 float MPU9250::getAccelX_G() {
-  return _ax * 0.101972;
+  return _ax / 9.807;
 }
 
 /* returns the accelerometer measurement in the y direction, m/s/s */
 float MPU9250::getAccelY_G() {
-  return _ay * 0.101972;
+  return _ay / 9.807;
 }
 
 /* returns the accelerometer measurement in the z direction, m/s/s */
 float MPU9250::getAccelZ_G() {
-  return _az * 0.101972;
+  return _az / 9.807;
 }
 
 /* returns the gyroscope measurement in the x direction, rad/s */

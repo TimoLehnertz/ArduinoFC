@@ -58,7 +58,6 @@ public:
     FlightMode::FlightMode_t flightMode = FlightMode::rate;
     FlightMode::FlightMode_t overwriteFlightMode = FlightMode::none;
 
-    float maxAngle = 20;
     bool propsIn = true;
 
     /**
@@ -130,8 +129,8 @@ public:
         handleArm();
         handleFlightMode();
         handleI();
-        handleAntiGravity();
-        handleStatistics();
+        // handleAntiGravity();
+        // handleStatistics();
 
         PID::updateAux(chanels.aux6, chanels.aux7, chanels.aux8);
 
@@ -153,8 +152,8 @@ public:
                 break;
             }
             case FlightMode::level: {
-                float desRollAngle = chanels.roll * 45.0f;
-                float desPitchAngle = chanels.pitch * 45.0f;
+                float desRollAngle = chanels.roll * 20.0f;
+                float desPitchAngle = chanels.pitch * 20.0f;
                 controllAngle(rollRateAdjust, pitchRateAdjust, yawRateAdjust, desRollAngle, desPitchAngle, desYawRate);
                 break;
             }
@@ -279,9 +278,7 @@ private:
     }
 
     void handleFlightMode() {
-        if(overwriteFlightMode != FlightMode::none) {
-            flightMode = overwriteFlightMode;
-        } else if(chanels.aux2 > 0.75) {
+         if(chanels.aux2 > 0.75) {
             flightMode = FlightMode::level;
         } else {
             flightMode = FlightMode::rate;
@@ -292,21 +289,12 @@ private:
          */
         flightMode = FlightMode::FlightMode_t(min(flightMode, ins->sensors->getHighestFM(Error::WARNING)));
 
-        // switch(flightMode) {
-        //     case FlightMode::rate: {
-        //         ins->sensors->useAcc = true;
-        //         ins->sensors->useMag = true;
-        //         break;
-        //     }
-        //     case FlightMode::level: {
-        //         ins->sensors->useAcc = true;
-        //         ins->sensors->useMag = true;
-        //     }
-        //     default: {
-        //         ins->sensors->useAcc = true;
-        //         ins->sensors->useMag = true;
-        //     }
-        // }
+        /**
+         * Overwrite All
+         */
+        if(overwriteFlightMode != FlightMode::none) {
+            flightMode = overwriteFlightMode;
+        }
     }
 
     void handleArm() {
@@ -368,6 +356,10 @@ private:
         ratePitchPID.lockI  = abs(ins->getPitchRate()) > iRelaxMinRate;
         rateYawPID.lockI    = abs(ins->getYawRate()) > iRelaxMinRate;
 
+        levelRollPID.lockI   = abs(ins->getRollRate()) > iRelaxMinRate;
+        levelPitchPID.lockI  = abs(ins->getPitchRate()) > iRelaxMinRate;
+        levelYawPID.lockI    = abs(ins->getYawRate()) > iRelaxMinRate;
+
         rateRollPID.iEnabled  = airborne;
         ratePitchPID.iEnabled = airborne;
         rateYawPID.iEnabled   = airborne;
@@ -380,20 +372,20 @@ private:
         return max(abs(chanels.roll), max(abs(chanels.pitch), abs(chanels.yaw)));
     }
 
-    void handleAntiGravity() {
-        if(!useAntiGravity) return;
-        iBoost = abs(chanels.throttle - lastThrottle) * boostSpeed;
-        if(iBoost < lastBoost) {
-            iBoost = boostLpf * iBoost + (1 - boostLpf) * lastBoost;
-        }
-        if(iBoost > 1) iBoost = 1;
-        if(iBoost < 0) iBoost = 0;
-        rateRollPID.iBoost  = 1 + (antiGravityMul - 1) * iBoost;
-        ratePitchPID.iBoost = 1 + (antiGravityMul - 1) * iBoost;
-        rateYawPID.iBoost   = 1 + (antiGravityMul - 1) * iBoost;
-        lastThrottle = chanels.throttle;
-        lastBoost = iBoost;
-    }
+    // void handleAntiGravity() {
+    //     if(!useAntiGravity) return;
+    //     iBoost = abs(chanels.throttle - lastThrottle) * boostSpeed;
+    //     if(iBoost < lastBoost) {
+    //         iBoost = boostLpf * iBoost + (1 - boostLpf) * lastBoost;
+    //     }
+    //     if(iBoost > 1) iBoost = 1;
+    //     if(iBoost < 0) iBoost = 0;
+    //     rateRollPID.iBoost  = 1 + (antiGravityMul - 1) * iBoost;
+    //     ratePitchPID.iBoost = 1 + (antiGravityMul - 1) * iBoost;
+    //     rateYawPID.iBoost   = 1 + (antiGravityMul - 1) * iBoost;
+    //     lastThrottle = chanels.throttle;
+    //     lastBoost = iBoost;
+    // }
 
     void handleStatistics() {
         if(chanels.aux3 > 0.5) {

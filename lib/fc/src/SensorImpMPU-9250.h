@@ -1,24 +1,36 @@
 #pragma once
 #include <Arduino.h>
 #include "sensorInterface.h"
-#include <Adafruit_BMP280.h>
 #include <TinyGPS++.h>
 #include <MPU9250.h>
 #include <error.h>
 #include <maths.h>
 
+#include <Wire.h>
+#include <SPI.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP280.h>
+
 #define G 9.807
 
+// #define BME_SCK 13
+// #define BME_MISO 12
+// #define BME_MOSI 11
+#define BMP_CS 9
+
+#define SEALEVELPRESSURE_HPA (1013.25)
+
+
 /**
- * VCC MPU9250                  : 5V
+ * VIN MPU9250                  : 5V
  * GND MPU9250                  : GND
  * SCL MPU9250                  : Pin 13
  * SDA MPU9250                  : Pin 11
- * AD0 MPU9250                  : Pin 12
+ * SDO/SAO MPU9250              : Pin 12
  * NCS MPU9250                  : Pin 10
  * 
- * SCL bmp280                   : Pin 16
- * SDA bmp280                   : Pin 17
+ * SCL SPI Same as MPU
+ * SDA Chip select              : Pin 9
  * 
  * RX GPS                       : Pin 20
  * TX GPS                       : Pin 21
@@ -28,19 +40,19 @@
 class MPU9250Sensor : public SensorInterface {
 public:
 
-    // MPU9250_asukiaaa imu;
-    Adafruit_BMP280 bmp280;
+    // Adafruit_BMP280 bmp;
     TinyGPSPlus gpsSensor;
 
     float altitudeOffset = 0;
     bool firstHeightMeasured = false;
 
-    int baroHz = 50;
+    int baroHz = 10;
     uint32_t lastBaro = 0;
 
     MPU9250 mpu9250;
+    Adafruit_BMP280 bmp;
 
-    MPU9250Sensor() : mpu9250(SPI, 10) {}
+    MPU9250Sensor() : mpu9250(SPI, 10), bmp(BMP_CS) {}
     
     /**
      * Begin function can becalled as many times as wanted
@@ -61,24 +73,24 @@ public:
     }
 
     void initGPS() {
-        Serial5.begin(9600);
+        Serial1.begin(9600);
     }
 
     void initBmp280() {
-        // if (!bmp.begin(BMP280_ADDRESS_ALT, BMP280_CHIPID)) {
-        Wire1.setClock(500000);
-        bmp280 = Adafruit_BMP280(&Wire1);
-        bool succsess = bmp280.begin(BMP280_ADDRESS_ALT);
+        // delay(5000);
+        // bmp = Adafruit_BMP280(BMP_CS);
+        bool succsess = bmp.begin();
         if (succsess) {
-            bmp280.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
-                            Adafruit_BMP280::SAMPLING_X1,     /* Temp. oversampling */
-                            Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
-                            Adafruit_BMP280::FILTER_X8,       /* Filtering. */
-                            Adafruit_BMP280::STANDBY_MS_1);   /* Standby time. */
-            baro.error = Error::CRITICAL_ERROR;
-        } else {
-            Serial.println(F("Could not find a valid BMP280 sensor. Wiring: SCL bmp280: Pin 16, SDA bmp280: Pin 17"));
+            bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
+                  Adafruit_BMP280::SAMPLING_X1,     /* Temp. oversampling */
+                  Adafruit_BMP280::SAMPLING_X1,     /* Pressure oversampling */
+                  Adafruit_BMP280::FILTER_X4,      /* Filtering. */
+                  Adafruit_BMP280::STANDBY_MS_1);   /* Standby time. */
             baro.error = Error::NO_ERROR;
+            Serial.println("Succsessfully initiated BMP280");
+        } else {
+            Serial.println("Could not find a valid BMP280 sensor, check wiring, address, sensor ID!");
+            baro.error = Error::CRITICAL_ERROR;
         }
     }
 
@@ -110,16 +122,18 @@ public:
     }
 
     void setAccCal(Vec3 gVecOffset, Vec3 scale) {
-        mpu9250.setAccelCalX(gVecOffset.x * G, scale.x);
-        mpu9250.setAccelCalY(gVecOffset.y * G, scale.y);
-        mpu9250.setAccelCalZ(gVecOffset.z * G, scale.z);
+        accOffset = gVecOffset.clone();
+        // mpu9250.setAccelCalX(gVecOffset.x * G, scale.x);
+        // mpu9250.setAccelCalY(gVecOffset.y * G, scale.y);
+        // mpu9250.setAccelCalZ(gVecOffset.z * G, scale.z);
     }
 
     void setGyroCal(Vec3 degVecOffset) {
-        degVecOffset.toRad();
-        mpu9250.setGyroBiasX_rads(degVecOffset.x);
-        mpu9250.setGyroBiasY_rads(degVecOffset.y);
-        mpu9250.setGyroBiasZ_rads(degVecOffset.z);
+        gyroOffset = degVecOffset.clone();
+        // degVecOffset.toRad();
+        // mpu9250.setGyroBiasX_rads(degVecOffset.x);
+        // mpu9250.setGyroBiasY_rads(degVecOffset.y);
+        // mpu9250.setGyroBiasZ_rads(degVecOffset.z);
     }
 
      void setMagCal(Vec3 offset, Vec3 scale) {
@@ -129,7 +143,8 @@ public:
     }
 
     Vec3 getAccOffset() {
-        return Vec3(mpu9250.getAccelBiasX_mss() / G, mpu9250.getAccelBiasY_mss() / G, mpu9250.getAccelBiasZ_mss() / G);
+        return accOffset;
+        // return Vec3(mpu9250.getAccelBiasX_mss() / G, mpu9250.getAccelBiasY_mss() / G, mpu9250.getAccelBiasZ_mss() / G);
     }
 
     Vec3 getAccScale() {
@@ -137,44 +152,66 @@ public:
     }
 
     Vec3 getGyroOffset() {
-        return Vec3(mpu9250.getGyroBiasX_rads() * RAD_TO_DEG, mpu9250.getGyroBiasY_rads() * RAD_TO_DEG, mpu9250.getGyroBiasZ_rads() * RAD_TO_DEG);
+        return gyroOffset;
     }
 
-     Vec3 getMagOffset() {
+    Vec3 getMagOffset() {
         return Vec3(mpu9250.getMagBiasX_uT(), mpu9250.getMagBiasY_uT(), mpu9250.getMagBiasZ_uT());
-     }
+    }
 
-     Vec3 getMagScale() {
+    Vec3 getMagScale() {
         return Vec3(mpu9250.getMagScaleFactorX(), mpu9250.getMagScaleFactorY(), mpu9250.getMagScaleFactorZ());
-     }
+    }
+
+    Vec3 getAccRaw() {
+        return Vec3(mpu9250.getAccelY_G(), -mpu9250.getAccelX_G(), -mpu9250.getAccelZ_G());
+    }
+
+    Vec3 getGyrocRaw() {
+        return Vec3(mpu9250.getGyroY_rads(), mpu9250.getGyroX_rads(), mpu9250.getGyroZ_rads());
+    }
 
     void handle() {
-        /**
-         * MPU9250
-         */
-        mpu9250.readSensor();
-        acc.update (mpu9250.getAccelX_G(), mpu9250.getAccelY_G(), -mpu9250.getAccelZ_G());
-        gyro.update(mpu9250.getGyroX_rads() * RAD_TO_DEG, -mpu9250.getGyroY_rads() * RAD_TO_DEG, mpu9250.getGyroZ_rads() * RAD_TO_DEG);
-        mag.update (mpu9250.getMagX_uT(), mpu9250.getMagY_uT(), mpu9250.getMagZ_uT());
-
+        uint64_t timeTmp = micros();
         /**
          * BMP280
          */
-        if(millis() > lastBaro + (1000 / baroHz)) {
-            float temperature = bmp280.readTemperature();
-            if(temperature != baro.temperature) {
-                baro.temperature = temperature;
+        if(baroHz > 0 && millis() > lastBaro + (1000 / baroHz)) {
+            timeTmp = micros();
+            // float altitude = 0;
+            float altitude = bmp.readAltitude(SEALEVELPRESSURE_HPA);
+            if(altitude != baro.altitude) {
+                baro.altitude = altitude;
                 baro.lastChange = micros();
             }
-            baro.preassure = bmp280.readPressure() / 100000.0f;
-            baro.altitude = bmp280.readAltitude(1028.6);
+            // baro.temperature = bme.readTemperature();
+            // baro.preassure = bme.readPressure() / 100000.0f;
             lastBaro = millis();
+            baro.lastPollTime = micros() - timeTmp;
+        } else {
+            /**
+             * MPU9250
+             */
+            mpu9250.readSensor();
+            acc.update (getAccRaw() - accOffset);
+            acc.lastPollTime = micros() - timeTmp;
+            timeTmp = micros();
+            gyro.update(getGyrocRaw().toDeg() - gyroOffset);
+            gyro.lastPollTime = micros() - timeTmp;
+            timeTmp = micros();
+            mag.update (mpu9250.getMagX_uT(), mpu9250.getMagY_uT(), mpu9250.getMagZ_uT());
+            mag.lastPollTime = micros() - timeTmp;
+            timeTmp = micros();
         }
+
         // /**
         //  * GPS
         //  */
-        while (Serial5.available()) {
-            if (gpsSensor.encode(Serial5.read())) {
+        while (Serial1.available()) {
+            char c = Serial1.read();
+            // Serial.write(c);
+            if (gpsSensor.encode(c)) {
+                timeTmp = micros();
                 gps.timeValid = gpsSensor.location.isValid();
                 if(gps.timeValid) {
                     gps.lat = gpsSensor.location.lat();
@@ -207,18 +244,15 @@ public:
                     gps.altitude = gpsSensor.altitude.value();
                 }
                 gps.lastChange = micros();
+                gps.lastPollTime = micros() - timeTmp;
             }
         }
         
-        // /**
-        //  * vBat
-        //  * Resolution 10 Bit(0 to 1023)
-        //  * Range 0 to 3.3 Volts
-        //  * 
-        //  * Voltage divider:
-        //  *  R1: 5640000 Ohms
-        //  *  R2: 477000  Ohms
-        //  */
+        /**
+         * vBat
+         * Resolution 10 Bit(0 to 1023)
+         * Range 0 to 3.3 Volts
+         */
         int analog = analogRead(22);
         vMeasured = (analog * 3.3) / 1023.0;
         bat.vBat = bat.vBat * (1 - batLpf) + batLpf * vMeasured * vBatMul; // lpf
@@ -227,6 +261,15 @@ public:
 
         bat.vCell = bat.vBat / bat.cellCount;
         bat.lastChange = micros();
+
+        /**
+         * Error handling
+         */
+        acc.checkError();
+        gyro.checkError();
+        mag.checkError();
+        baro.checkError();
+        gps.checkError();
     }
 
     /**
@@ -235,10 +278,12 @@ public:
      */
     void calibrateAccQuick() {
         Vec3 avg = getAccAvg(100, 20);
-        Vec3 offset = avg - Vec3(0, 0, -G);
-        mpu9250.setAccelCalX(offset.x, 1);
-        mpu9250.setAccelCalY(offset.y, 1);
-        mpu9250.setAccelCalZ(offset.z, 1);
+        accOffset = (avg - Vec3(0, 0, 1));
+        // Vec3 offset = avg - Vec3(0, 0, -G);
+        // accOffset = 
+        // mpu9250.setAccelCalX(offset.x, 1);
+        // mpu9250.setAccelCalY(offset.y, 1);
+        // mpu9250.setAccelCalZ(offset.z, 1);
     }
 
     void calibrateAccSide(Side side) {
@@ -303,7 +348,7 @@ public:
         Vec3 avg = Vec3();
         for (size_t i = 0; i < samples; i++) {
             mpu9250.readSensor();
-            avg += Vec3(mpu9250.getAccelX_mss(), mpu9250.getAccelY_mss(), mpu9250.getAccelZ_mss()) / (double) samples;
+            avg += getAccRaw() / (double) samples;
             delay(20);
         }
         return avg;
@@ -313,11 +358,14 @@ public:
      * Blocks for 2 seconds
      */
     void calibrateGyro() {
-        int error = mpu9250.calibrateGyro();
-        if(error < 1) {
-            Serial.print("Failed to calibrate Gyro. Error: ");
-            Serial.println(error);
+        Vec3 avg = Vec3();
+        const int sampleCount = 100;
+        for (size_t i = 0; i < sampleCount; i++) {
+            mpu9250.readSensor();
+            avg += getGyrocRaw().toDeg();
+            delay(20);
         }
+        gyroOffset = (avg / (double) sampleCount);
     }
 
     /**
@@ -336,6 +384,9 @@ public:
     }
 
 private:
+
+    Vec3 gyroOffset = Vec3();//in degrees
+    Vec3 accOffset = Vec3();//in G
 
     bool mpuErrorPrinted = false;
     float vMeasured = 1;

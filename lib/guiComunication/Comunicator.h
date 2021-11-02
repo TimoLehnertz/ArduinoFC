@@ -3,6 +3,7 @@
 #include <ins.h>
 #include <FC.h>
 #include <Storage.h>
+#include <Adafruit_NeoPixel.h>
 
 /**
  * Comunication protocol:
@@ -42,14 +43,16 @@ public:
     SensorInterface* sensors;
     FC* fc;
 	Crossfire* crsf;
+	Adafruit_NeoPixel* pixels;
 
-    Comunicator(INS* ins, SensorInterface* sensors, FC* fc, Crossfire* crsf) : ins(ins), sensors(sensors), fc(fc), crsf(crsf) {}
+    Comunicator(INS* ins, SensorInterface* sensors, FC* fc, Crossfire* crsf, Adafruit_NeoPixel* pixels) : ins(ins), sensors(sensors), fc(fc), crsf(crsf), pixels(pixels) {}
 
     void begin();
     void handle();
     void end();
 
     void postSensorData(const char* sensorName, const char* subType, float value);
+    void postSensorDataInt(const char* sensorName, const char* subType, uint64_t value);
     void postSensorData(const char* sensorName, PID pid);
 
 	bool motorOverwrite = false;
@@ -66,8 +69,10 @@ public:
 	uint64_t chanelsTime = 0;
 	uint64_t fcTime = 0;
 	uint64_t loopEnd = 0;
+	uint64_t maxLoopTime = 0;
 
 	float cpuLoad = 0;
+	uint64_t loopTimeUs = 0;
 	int actualFreq = 0;
 
 	int loopFreqRate = 1000;
@@ -104,13 +109,18 @@ private:
     uint64_t telemUs = 1000000 / telemetryFreq;
     uint64_t lastTelem = 0;
 
+	int ledFreq = 30;
+	uint32_t lastLED = 0;
+
     void processSerialLine();
     void post(const char* command, const char* value);
     void post(const char* command, String value);
 
     void postResponse(char* uid, String body);
+    void postResponse(char* uid, Vec3 vec);
     void postResponse(char* uid, const char* body);
     void postResponse(char* uid, float num);
+    void postResponse(char* uid, double num);
     void postResponse(char* uid, int val);
     void postResponse(char* uid, bool val);
     void postResponse(char* uid, Matrix3 mat);
@@ -118,6 +128,9 @@ private:
 
     void scheduleTelemetry();
     void postTelemetry();
+
+	void handleLED();
+	void drawLedIdle();
 };
 
 #endif

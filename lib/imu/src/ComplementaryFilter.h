@@ -18,20 +18,23 @@ public:
 
     void handle() {
         if(!sensors->acc.isError() && sensors->acc.lastChange != lastAcc) {
-            processAcc(sensors->acc.getVec3(), micros() - sensors->acc.lastChange);
+            processAcc(sensors->acc.getVec3(), micros() - lastAccProcessed);
             lastAcc = sensors->acc.lastChange;
+            lastAccProcessed = micros();
         }
         if(!sensors->gyro.isError() && sensors->gyro.lastChange != lastGyro) {
-            processAcc(sensors->gyro.getVec3(), micros() - sensors->gyro.lastChange);
+            processGyro(sensors->gyro.getVec3(), micros() - lastGyroProcessed);
             lastGyro = sensors->gyro.lastChange;
+            lastGyroProcessed = micros();
         }
         if(!sensors->mag.isError() && sensors->mag.lastChange != lastMag) {
             processMag(sensors->mag.getVec3());
             lastMag = sensors->mag.lastChange;
         }
         if(!sensors->baro.isError() && sensors->baro.lastChange != lastBaro) {
-            processBaroAltitude(sensors->baro.altitude, micros() - sensors->baro.lastChange);
+            processBaroAltitude(sensors->baro.altitude, micros() - lastBaroProcessed);
             lastBaro = sensors->baro.lastChange;
+            lastBaroProcessed = micros();
         }
         if(!sensors->gps.isError() && sensors->gps.lastChange != lastGPS) {
             processGPS(sensors->gps);
@@ -57,12 +60,19 @@ public:
 
 private:
     uint64_t lastAcc = 0;
+    uint64_t lastAccProcessed = 0;
     uint64_t lastGyro = 0;
+    uint64_t lastGyroProcessed = 0;
     uint64_t lastMag = 0;
+    uint64_t lastMagProcessed = 0;
     uint64_t lastBaro = 0;
+    uint64_t lastBaroProcessed = 0;
     uint64_t lastGPS = 0;
+    uint64_t lastGPSProcessed = 0;
 
     float baroAltitude = 0;
+    double baroOffset = 0;
+    double lastRawBaroAltitude = 0;
     float lastBaroAlt = 0;
     float baroAltSpeed = 0;
 
@@ -72,11 +82,13 @@ private:
     void processAcc(const Vec3 acc, const uint32_t deltaT) {
         float elapsedSeconds = deltaT / 1000000.0f;
         //rotation
-        double limitRad = PI / 3.5;
+        double limitRad = 70 * DEG_TO_RAD;
         double g = acc.getLength();
         double pitch = rot.toEulerZYX().y;
-        float minG = 0.8;
-        if(pitch > -limitRad && pitch < limitRad && g > minG) { //check if movement is too strong or gimbal lock could interfere
+        double roll = rot.toEulerZYX().x;
+        float minG = 0.5;
+        float maxG = 1.5;
+        if(pitch > -limitRad && pitch < limitRad && roll > -limitRad && roll < limitRad && g > minG && g < maxG) { //check if movement is too strong or gimbal lock could interfere
             Vec3 accCorrected = acc;
             if(useDroneOptimization && !headDown) {
                 accCorrected = Vec3(acc.x, acc.y, sqrt(-pow(acc.x, 2) -pow(acc.y, 2) + 1)); // calculating z assuming that G-Force is equal to 1 => eliminating propeller lift
@@ -92,16 +104,16 @@ private:
                 rot = Quaternion::lerp(accRot, rot, 1 - accInfluence);
             }
         }
+         //subtracting gravity
         Vec3 accel = acc * G;
         //rotate acceleration
         rot.rotate(accel);
-        //subtracting gravity
-        accel -= Vec3(0, 0, 1);
-        accel /= 2.0;//strange but works
+        accel -= Vec3(0, 0, G);
+        // accel /= 2.0;//strange but works
         vel += accel * elapsedSeconds;
         
-        double minOff = 2;
-        float baroAltitudeInfl = 0.0005;
+        double minOff = 3;
+        float baroAltitudeInfl = 0.0001;
         // float baroAltitudeSpdInfl = 0.001;
         if(baroAltitude < loc.z - minOff || baroAltitude > loc.z + minOff) {
             baroAltitudeInfl = 0.01;
@@ -115,6 +127,8 @@ private:
 
         loc.z = loc.z * (1 - baroAltitudeInfl) + baroAltitude * baroAltitudeInfl;
         vel.z = vel.z * (1 - baroAltitudeInfl) + baroAltSpeed * baroAltitudeInfl;
+
+        // loc = accel.clone();
     }
 
     void processGyro(const Vec3 &gyro, uint32_t deltaT) {
@@ -144,21 +158,35 @@ private:
     }
 
     void processBaroAltitude(const double altitude, const uint32_t deltaT) {
-        baroAltitude = altitude;
+        lastRawBaroAltitude = altitude;
+        if(baroOffset == 0.0) {
+            baroOffset = altitude;
+        }
+        const double altitudeFiltered = altitude - baroOffset;
+        baroAltitude = altitudeFiltered;
         float elapsedSeconds = deltaT / 1000000.0f;
         static double lastBaroAlt = 0.0;
         if(lastBaroAlt == 0.0) {
-            lastBaroAlt = altitude;
+            lastBaroAlt = altitudeFiltered;
         }
-        double tmpBaroSpd = (altitude - lastBaroAlt) / elapsedSeconds;
-        baroAltSpeed = lowPassFilter(baroAltSpeed, tmpBaroSpd, 0.1);
-        lastBaroAlt = altitude;
+        double tmpBaroSpd = (altitudeFiltered - lastBaroAlt) / elapsedSeconds;
+        baroAltSpeed = lowPassFilter(baroAltSpeed, tmpBaroSpd, 0.05);
+        lastBaroAlt = altitudeFiltered;
     }
 
     void processGPS(GPS gps) {
         /**
          * Todo
          */
+    }
+
+    void reset() {
+        rot = Quaternion();
+        loc = Vec3();
+        vel = Vec3();
+        baroOffset = lastRawBaroAltitude;
+        lastBaroAlt = 0;
+        baroAltSpeed = 0;
     }
 
     static double lowPassFilter(double prevFiltered, double now, double smoothing) {

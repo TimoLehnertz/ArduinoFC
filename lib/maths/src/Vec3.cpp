@@ -81,6 +81,13 @@ Vec3 Vec3::toDeg() {
     return *this;
 }
 
+Vec3 Vec3::toG() {
+    x = x / 9.807;
+    y = y / 9.807;
+    z = z / 9.807;
+    return *this;
+}
+
 void Vec3::toUnitLength() {
     double len = getLength();
     if(len == 0) return;
@@ -249,10 +256,6 @@ bool Vec3::operator <= (const Vec3& v) const {
 //conversion operator
 Vec3::operator double() {
     return getValue();
-}
-
-String Vec3::toString() const {
-    return String("(") + String(x, 5) + String("|") + String(y, 5) + String("|") + String(z, 5) + String(")");
 }
 
 Matrix3 Vec3::toMatrix3() const {

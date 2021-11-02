@@ -4,6 +4,7 @@
 #include <maths.h>
 #include <error.h>
 #include <SensorFusion.h>
+#include <Adafruit_NeoPixel.h>
 
 int strpos3(const char* haystack, const char needle, int start = 0) {
   for(int i = start; i < 100; i++) {
@@ -15,6 +16,7 @@ int strpos3(const char* haystack, const char needle, int start = 0) {
 void Comunicator::begin() {
     Serial.println("FC comunication initiated");
     Serial2.println("FC comunication initiated");
+    pixels->begin();
 }
 
 void Comunicator::handle() {
@@ -33,6 +35,41 @@ void Comunicator::handle() {
       bufferCount = 0;
   }
   scheduleTelemetry();
+  handleLED();
+}
+
+void Comunicator::handleLED() {
+  if(!useLeds) return;
+  if(millis() - (1000 / ledFreq) > lastLED) {
+    pixels->clear();
+    if(fc->isArmed()) {
+      float roll = ins->getRoll() * RAD_TO_DEG;
+      float pitch = ins->getPitch() * RAD_TO_DEG;
+      int maxAngle = 3;
+      if(roll > -maxAngle && roll < maxAngle && pitch > -maxAngle && pitch < maxAngle) {
+        pixels->fill(pixels->Color(0, 10, 0), 0, 10);
+        // pixels->fill(pixels->Color(0, 10, 0), 4, 1);
+      } else {
+        pixels->fill(pixels->Color(10, 0, 0), 0, 10);
+        // pixels->fill(pixels->Color(10, 0, 0), 4, 1);
+      }
+    } else {
+      drawLedIdle();
+    }
+    pixels->show();
+    lastLED = millis();
+  }
+}
+
+void Comunicator::drawLedIdle() {
+  uint32_t color;
+  int c = (int) (sin(millis() / 500.0f) * 50);
+  if(c > 0) {
+    color = pixels->Color(c, 0 ,0);
+  } else {
+    color = pixels->Color(0, 0 ,-c);
+  }
+  pixels->fill(color, 0, 10);
 }
 
 void Comunicator::scheduleTelemetry() {
@@ -103,31 +140,40 @@ void Comunicator::postTelemetry() {
     if(sensors->gps.speedValid) {
       postSensorData("GPS", "spd", sensors->gps.speed);
     }
-    postSensorData("GPS", "Sat", sensors->gps.satelites);
+    postSensorDataInt("GPS", "Sat", sensors->gps.satelites);
   }
   if(useTimingTelem) {
+    maxLoopTime = max(maxLoopTime, loopTimeUs);
+
     postSensorData("FREQ", "loopHz", actualFreq);
-    postSensorData("TIME", "CRSF Us", crsfTime - loopStart);
-    postSensorData("TIME", "Sens Us", sensorsTime - crsfTime);
-    postSensorData("TIME", "INS Us", insTime - sensorsTime);
-    postSensorData("TIME", "Chan Us", chanelsTime - insTime);
-    postSensorData("TIME", "FC Us", fcTime - chanelsTime);
-    // postSensorData("TIME", "Sum", loopEnd - loopStart); // overflow
+    postSensorDataInt("TIME", "CRSF Us", crsfTime - loopStart);
+    postSensorDataInt("TIME", "Sens Us", sensorsTime - crsfTime);
+    postSensorDataInt("TIME", "INS Us", insTime - sensorsTime);
+    postSensorDataInt("TIME", "Chan Us", chanelsTime - insTime);
+    postSensorDataInt("TIME", "FC Us", fcTime - chanelsTime);
     postSensorData("CPU Load", "", cpuLoad);
+    postSensorDataInt("Loop time Us", "", loopTimeUs);
+    postSensorDataInt("Sensor Poll Us", "Acc", sensors->acc.lastPollTime);
+    postSensorDataInt("Sensor Poll Us", "Gyro", sensors->gyro.lastPollTime);
+    postSensorDataInt("Sensor Poll Us", "Mag", sensors->mag.lastPollTime);
+    postSensorDataInt("Sensor Poll Us", "Baro", sensors->baro.lastPollTime);
+    postSensorDataInt("Sensor Poll Us", "GPS", sensors->gps.lastPollTime);
+    postSensorDataInt("Max Loop Time", "Us", maxLoopTime);
+    postSensorDataInt("Min Freq", "Hz", 1000000.0f / maxLoopTime);
   }
   if(useRCTelem) {
-    postSensorData("RC", "CH1", fc->chanelsRaw.chanels[0]);
-    postSensorData("RC", "CH2", fc->chanelsRaw.chanels[1]);
-    postSensorData("RC", "CH3", fc->chanelsRaw.chanels[2]);
-    postSensorData("RC", "CH4", fc->chanelsRaw.chanels[3]);
-    postSensorData("RC", "CH5", fc->chanelsRaw.chanels[4]);
-    postSensorData("RC", "CH6", fc->chanelsRaw.chanels[5]);
-    postSensorData("RC", "CH7", fc->chanelsRaw.chanels[6]);
-    postSensorData("RC", "CH8", fc->chanelsRaw.chanels[7]);
-    postSensorData("RC", "CH9", fc->chanelsRaw.chanels[8]);
-    postSensorData("RC", "CH10", fc->chanelsRaw.chanels[9]);
-    postSensorData("RC", "CH11", fc->chanelsRaw.chanels[10]);
-    postSensorData("RC", "CH12", fc->chanelsRaw.chanels[11]);
+    postSensorDataInt("RC", "CH1", fc->chanelsRaw.chanels[0]);
+    postSensorDataInt("RC", "CH2", fc->chanelsRaw.chanels[1]);
+    postSensorDataInt("RC", "CH3", fc->chanelsRaw.chanels[2]);
+    postSensorDataInt("RC", "CH4", fc->chanelsRaw.chanels[3]);
+    postSensorDataInt("RC", "CH5", fc->chanelsRaw.chanels[4]);
+    postSensorDataInt("RC", "CH6", fc->chanelsRaw.chanels[5]);
+    postSensorDataInt("RC", "CH7", fc->chanelsRaw.chanels[6]);
+    postSensorDataInt("RC", "CH8", fc->chanelsRaw.chanels[7]);
+    postSensorDataInt("RC", "CH9", fc->chanelsRaw.chanels[8]);
+    postSensorDataInt("RC", "CH10", fc->chanelsRaw.chanels[9]);
+    postSensorDataInt("RC", "CH11", fc->chanelsRaw.chanels[10]);
+    postSensorDataInt("RC", "CH12", fc->chanelsRaw.chanels[11]);
   }
   if(useFCTelem) {
     postSensorData("RateAdj", "Roll", fc->rollRateAdjust);
@@ -139,11 +185,12 @@ void Comunicator::postTelemetry() {
     postSensorData("Level PID Roll", fc->levelRollPID);
     postSensorData("Level PID Pitch", fc->levelPitchPID);
     postSensorData("Anti Gravity", "boost", fc->iBoost);
+    postSensorData("Flight mode", "boost", fc->flightMode);
   }
   if(useBatTelem) {
     postSensorData("vBat", "Voltage", sensors->bat.vBat);
     postSensorData("vCell", "Voltage", sensors->bat.vCell);
-    postSensorData("Cell count", "count", sensors->bat.cellCount);
+    postSensorDataInt("Cell count", "count", sensors->bat.cellCount);
   }
 }
 
@@ -153,6 +200,24 @@ void Comunicator::end() {
 
   Serial2.println("ending comunication");
   Serial2.end();
+}
+
+void Comunicator::postSensorDataInt(const char* sensorName, const char* subType, uint64_t value) {
+  Serial.print("FC_POST_SENSOR");
+  Serial.print(' ');
+  Serial.print(sensorName);
+  Serial.print(';');
+  Serial.print(subType);
+  Serial.print(';');
+  Serial.println(value, 10);
+
+  Serial2.print("FC_POST_SENSOR");
+  Serial2.print(' ');
+  Serial2.print(sensorName);
+  Serial2.print(';');
+  Serial2.print(subType);
+  Serial2.print(';');
+  Serial2.println(value, 10);
 }
 
 void Comunicator::postSensorData(const char* sensorName, const char* subType, float value) {
@@ -178,17 +243,6 @@ void Comunicator::postSensorData(const char* sensorName, PID pid) {
   postSensorData(sensorName, "I", pid.prevI);
   postSensorData(sensorName, "D", pid.prevD);
   postSensorData(sensorName, "SUM", pid.prevOut);
-}
-
-
-void Comunicator::post(const char* command, String value) {
-  Serial.print(command);
-  Serial.print(' ');
-  Serial.println(value);
-
-  Serial2.print(command);
-  Serial2.print(' ');
-  Serial2.println(value);
 }
 
 void Comunicator::post(const char* command, const char* value) {
@@ -223,12 +277,10 @@ void Comunicator::processSerialLine() {
       postResponse(uid, "0");
     }
     if(strncmp("ACC_OFFSET", command, 10) == 0) {
-      postResponse(uid, sensors->getAccOffset().toString());
-      // postResponse(uid, ins->getAccOffset().toString());
+      postResponse(uid, sensors->getAccOffset());
     }
     if(strncmp("GYRO_OFFSET", command, 11) == 0) {
-      // postResponse(uid, ins->getGyroOffset().toString());
-      postResponse(uid, sensors->getGyroOffset().toString());
+      postResponse(uid, sensors->getGyroOffset());
     }
     if(strncmp("ACC_LPF", command,7) == 0) {
       postResponse(uid, sensors->acc.lpf);
@@ -354,17 +406,14 @@ void Comunicator::processSerialLine() {
     if(strncmp("USE_VCELL", command, 9) == 0) {
       postResponse(uid, useCellVoltage);
     }
-    if(strncmp("ACC_OFFSET", command, 10) == 0) {
-      postResponse(uid, sensors->getAccOffset().toString());
-    }
     if(strncmp("ACC_SCALE", command, 9) == 0) {
-      postResponse(uid, sensors->getAccScale().toString());
+      postResponse(uid, sensors->getAccScale());
     }
     if(strncmp("MAG_OFFSET", command, 10) == 0) {
-      postResponse(uid, sensors->getMagOffset().toString());
+      postResponse(uid, sensors->getMagOffset());
     }
     if(strncmp("MAG_SCALE", command, 9) == 0) {
-      postResponse(uid, sensors->getMagScale().toString());
+      postResponse(uid, sensors->getMagScale());
     }
     if(strncmp("SENSOR_FUSION", command, 13) == 0) {
       postResponse(uid, ins->getFusionAlgorythm());
@@ -378,17 +427,17 @@ void Comunicator::processSerialLine() {
       Serial.println("Calibrating Accelerometer(Quick)");
       sensors->calibrateAccQuick();
       Serial.print("Done! Offset: ");
-      Serial.print(sensors->getAccOffset().toString());
+      sensors->getAccOffset().println(Serial);
       Serial.print(", Scale: ");
-      Serial.println(sensors->getAccScale().toString());
+      sensors->getAccScale().println(Serial);
     }
     if(strncmp("ACC_CALIB", command, 9) == 0) {
       Serial.println("Calibrating Accelerometer(full)");
       sensors->calibrateAcc();
       Serial.print("Done! Offset: ");
-      Serial.print(sensors->getAccOffset().toString());
+      sensors->getAccOffset().println(Serial);
       Serial.print(", Scale: ");
-      Serial.println(sensors->getAccScale().toString());
+      sensors->getAccScale().println(Serial);
     }
     if(strncmp("GYRO_CALIB", command, 10) == 0) {
       Serial.println("Calibrating Gyroscope");
@@ -451,10 +500,6 @@ void Comunicator::processSerialLine() {
       return;
     }
     char* value = buffer + valueStart;
-    if(strncmp("ACC_OFFSET", command, 10) == 0) {
-      postResponse(uid, value);
-      sensors->setAccCal(Vec3(value), sensors->getAccScale());
-    }
     if(strncmp("GYRO_OFFSET", command, 11) == 0) {
       postResponse(uid, value);
       sensors->setGyroCal(Vec3(value));
@@ -667,16 +712,28 @@ void Comunicator::processSerialLine() {
   }
 }
 
-void Comunicator::postResponse(char* uid, String body) {
+void Comunicator::postResponse(char* uid, Vec3 vec) {
   Serial.print("FC_RES ");
   Serial.print(uid);
   Serial.print(" ");
-  Serial.println(body);
+  Serial.print("(");
+  Serial.print(vec.x, 5);
+  Serial.print("|");
+  Serial.print(vec.y, 5);
+  Serial.print("|");
+  Serial.print(vec.z, 5);
+  Serial.println(")");
 
   Serial2.print("FC_RES ");
   Serial2.print(uid);
   Serial2.print(" ");
-  Serial2.println(body);
+  Serial2.print("(");
+  Serial2.print(vec.x, 5);
+  Serial2.print("|");
+  Serial2.print(vec.y, 5);
+  Serial2.print("|");
+  Serial2.print(vec.z, 5);
+  Serial2.println(")");
 }
 
 void Comunicator::postResponse(char* uid, Matrix3 mat) {
@@ -712,6 +769,18 @@ void Comunicator::postResponse(char* uid, const char* body) {
 }
 
 void Comunicator::postResponse(char* uid, float num) {
+  Serial.print("FC_RES ");
+  Serial.print(uid);
+  Serial.print(" ");
+  Serial.println(num, 5);
+
+  Serial2.print("FC_RES ");
+  Serial2.print(uid);
+  Serial2.print(" ");
+  Serial2.println(num, 5);
+}
+
+void Comunicator::postResponse(char* uid, double num) {
   Serial.print("FC_RES ");
   Serial.print(uid);
   Serial.print(" ");

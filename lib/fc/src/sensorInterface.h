@@ -10,6 +10,7 @@
  */
 struct Sensor {
     uint64_t lastChange;
+    uint64_t lastPollTime; // Supposed to be measured and set By SensorInterface implementation
     Error::Error_t error;
     FlightMode::FlightMode_t minFlightMode;
 
@@ -30,12 +31,16 @@ struct Vec3Sensor : public Sensor {
 
     Vec3Sensor(FlightMode::FlightMode_t minFlightMode) : Sensor(minFlightMode), similarCount(0) {}
 
+    void update(Vec3 vec) {
+        update(vec.x, vec.y, vec.z);
+    }
+
     void update(float x1, float y1, float z1) {
         if(x1 != x || y1 != y || z1 != z) {
             lastChange = micros();
-            x = x1 * lpf + (1 - lpf) * last.x;
-            y = y1 * lpf + (1 - lpf) * last.y;
-            z = z1 * lpf + (1 - lpf) * last.z;
+            x = x1 * lpf + (1.0 - lpf) * last.x;
+            y = y1 * lpf + (1.0 - lpf) * last.y;
+            z = z1 * lpf + (1.0 - lpf) * last.z;
             last = Vec3(x, y, z);
         }
     }
@@ -93,8 +98,8 @@ struct Barometer : public Sensor{
     void checkError() {
         if(altitude == lastAltitude) {
             similarCount++;
-            if(similarCount >= 100) {
-                similarCount = 100;
+            if(similarCount >= 1000) {
+                similarCount = 1000;
                 error = Error::CRITICAL_ERROR;
             }
         } else {
@@ -144,7 +149,7 @@ struct GPS : public Sensor{
     GPS() : Sensor(FlightMode::gpsHold) {}
 
     void checkError() {
-        if(micros() - lastChange > 2000000) { // 2 sek timeout
+        if(micros() - lastChange > 2000000 || satelites < 3) { // 2 sek timeout
             error = Error::CRITICAL_ERROR;
         } else {
             error = Error::NO_ERROR;

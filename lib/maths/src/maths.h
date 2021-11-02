@@ -18,15 +18,15 @@ public:
 
     Matrix3 operator * (const Matrix3&) const;
     Vec3 operator * (const Vec3&) const;
-    String toString () const {
-        return String("") + m[0] + String(",") + m[1] + String(",") + m[2] + String(",") + m[3] + String(",") + m[4] + String(",") + m[5] + String(",") + m[6] + String(",") + m[7] + String(",") + m[8] + String(",");
-        // String s("");
-        // for (size_t i = 0; i < 9; i++) {
-        //     // Serial.println(m[i]);
-        //     s += String(",") + m[i];
-        // }
-        // return s;
-    }
+    // String toString () const {
+    //     return String("") + m[0] + String(",") + m[1] + String(",") + m[2] + String(",") + m[3] + String(",") + m[4] + String(",") + m[5] + String(",") + m[6] + String(",") + m[7] + String(",") + m[8] + String(",");
+    //     // String s("");
+    //     // for (size_t i = 0; i < 9; i++) {
+    //     //     // Serial.println(m[i]);
+    //     //     s += String(",") + m[i];
+    //     // }
+    //     // return s;
+    // }
 private:
     static int rowCol(int, int);
 };
@@ -49,6 +49,7 @@ struct Vec3 {
 
     Vec3 toRad();
     Vec3 toDeg();
+    Vec3 toG();
 
     void setFrom(const Vec3&);
 
@@ -112,7 +113,20 @@ struct Vec3 {
     operator double();
     operator Matrix3();
 
-    String toString() const;
+    void print(Stream &serial) {
+        serial.print("(");
+        serial.print(x, 5);
+        serial.print("|");
+        serial.print(y, 5);
+        serial.print("|");
+        serial.print(z, 5);
+        serial.print(")");
+    }
+
+    void println(Stream &serial = Serial) {
+        print(serial);
+        serial.println();
+    }
 };
 
 
@@ -167,10 +181,6 @@ public:
     double getPitch();
     double getRoll();
     double getYaw();
-
-    String toString() const {
-        return String("Euler (deg) (x=") + x * 57296 / 1000 + String(",y=") + y * 57296 / 1000 + String(",z=") + z * 57296 / 1000 + String(")");
-    }
 };
 
 class Quaternion : public Rotation {
@@ -219,10 +229,5 @@ public:
     static Quaternion lerp(const Quaternion &q1, const Quaternion q2, double t) {
         t = max(0.0, min(1.0, t));
         return (q1.clone() * (1 - t) + q2.clone() * t).normalize();
-    }
-
-
-    String toString() const {
-        return String(w) + String(",") + x + String(",") + y + String(",") + z;
     }
 };

@@ -18,7 +18,7 @@ public:
     void begin() {getSensorFusion()->begin();}
     void handle() {getSensorFusion()->handle();}
 
-    void reset() {getSensorFusion()->begin();}
+    void reset() {getSensorFusion()->reset();}
 
     /**
      * Getters /Setters
