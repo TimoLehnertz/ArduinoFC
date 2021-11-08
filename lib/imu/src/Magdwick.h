@@ -154,6 +154,10 @@ public:
         lastUpdate = micros();
     }
 
+    void resetAltitude() {
+        loc.z = 0;
+    }
+
     bool isLocationValid() {
         return sensors->gps.error != Error::CRITICAL_ERROR;
     }

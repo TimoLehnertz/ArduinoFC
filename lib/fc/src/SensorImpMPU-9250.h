@@ -46,7 +46,7 @@ public:
     float altitudeOffset = 0;
     bool firstHeightMeasured = false;
 
-    int baroHz = 10;
+    float baroHz = 50;
     uint32_t lastBaro = 0;
 
     MPU9250 mpu9250;
@@ -74,6 +74,21 @@ public:
 
     void initGPS() {
         Serial1.begin(9600);
+        delay(200);
+        char disable_GPGSV[11] = {0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0xF0, 0x03, 0x00, 0xFD, 0x15};
+        Serial1.write(disable_GPGSV, 11);
+        delay(200);
+        char setTo5Hz[14] = {0xB5, 0x62, 0x06, 0x08, 0x06, 0x00, 0xC8/*200ms*/, 0x00, 0x01, 0x00, 0x01, 0x00, 0xDE, 0x6A};
+        Serial1.write(setTo5Hz, 14);
+        delay(200);
+        // char setTo57kbs[28] = { 0xB5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xD0, 0x08, 0x00, 0x00,
+        //                         0x00, 0xE1, 0x00, 0x00, 0x07, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE2, 0xE1};
+        // Serial1.write(setTo57kbs, 28);
+        const char setTo115200[] = "PUBX,41,1,3,3,115200,0";
+        Serial1.write(setTo115200);
+        delay(200);
+        // Serial1.end();
+        // Serial1.begin(57600);
     }
 
     void initBmp280() {
@@ -176,16 +191,13 @@ public:
         /**
          * BMP280
          */
-        if(baroHz > 0 && millis() > lastBaro + (1000 / baroHz)) {
+        if(baroHz > 0 && millis() > lastBaro + (1000.0f / baroHz)) {
             timeTmp = micros();
-            // float altitude = 0;
             float altitude = bmp.readAltitude(SEALEVELPRESSURE_HPA);
             if(altitude != baro.altitude) {
                 baro.altitude = altitude;
                 baro.lastChange = micros();
             }
-            // baro.temperature = bme.readTemperature();
-            // baro.preassure = bme.readPressure() / 100000.0f;
             lastBaro = millis();
             baro.lastPollTime = micros() - timeTmp;
         } else {
@@ -209,16 +221,16 @@ public:
         //  */
         while (Serial1.available()) {
             char c = Serial1.read();
-            // Serial.write(c);
+            Serial.write(c);
             if (gpsSensor.encode(c)) {
                 timeTmp = micros();
-                gps.timeValid = gpsSensor.location.isValid();
-                if(gps.timeValid) {
+                gps.locationValid = gpsSensor.location.isValid();
+                if(gps.locationValid) {
                     gps.lat = gpsSensor.location.lat();
                     gps.lng = gpsSensor.location.lng();
                 }
                 gps.dateValid = gpsSensor.date.isValid();
-                if(gps.timeValid) {
+                if(gps.dateValid) {
                     gps.year = gpsSensor.date.year();
                     gps.month = gpsSensor.date.month();
                     gps.day = gpsSensor.date.day();
@@ -237,7 +249,7 @@ public:
                 }
                 gps.speedValid = gpsSensor.speed.isValid();
                 if(gps.speedValid) {
-                    gps.speed = gpsSensor.speed.kmph();
+                    gps.speed = gpsSensor.speed.mps();
                 }
                 gps.altitudeValid = gpsSensor.altitude.isValid();
                 if(gps.altitudeValid) {

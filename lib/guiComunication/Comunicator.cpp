@@ -126,13 +126,13 @@ void Comunicator::postTelemetry() {
   if(useBaroTelem) {
     postSensorData("BARO", "Alt", sensors->baro.altitude);
     // postSensorData("BARO(f)", "Alt", ins->getLastFilteredBaroAltitude());
-    postSensorData("BARO(speed m/s)", "Alt", ins->getVelocity().z);
+    postSensorData("BARO(speed m/s)", "Alt", ins->complementaryFilter.baroAltSpeed);
   }
 
   if(useGpsTelem) {
     if(sensors->gps.locationValid) {
-      postSensorData("GPS", "LAT", sensors->gps.lat);
-      postSensorData("GPS", "LNG", sensors->gps.lng);
+      postSensorData("GPS LAT", "LAT", sensors->gps.lat);
+      postSensorData("GPS LNG", "LNG", sensors->gps.lng);
     }
     if(sensors->gps.altitudeValid) {
       postSensorData("GPS", "alt", sensors->gps.altitude);
@@ -203,6 +203,24 @@ void Comunicator::end() {
 }
 
 void Comunicator::postSensorDataInt(const char* sensorName, const char* subType, uint64_t value) {
+  Serial.print("FC_POST_SENSOR");
+  Serial.print(' ');
+  Serial.print(sensorName);
+  Serial.print(';');
+  Serial.print(subType);
+  Serial.print(';');
+  Serial.println(value, 10);
+
+  Serial2.print("FC_POST_SENSOR");
+  Serial2.print(' ');
+  Serial2.print(sensorName);
+  Serial2.print(';');
+  Serial2.print(subType);
+  Serial2.print(';');
+  Serial2.println(value, 10);
+}
+
+void Comunicator::postSensorDataDouble(const char* sensorName, const char* subType, double value) {
   Serial.print("FC_POST_SENSOR");
   Serial.print(' ');
   Serial.print(sensorName);

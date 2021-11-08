@@ -61,7 +61,7 @@ public:
     bool propsIn = true;
 
     /**
-     * Rates
+     * Rate
      */
     float rollRateRC = 1.0f;
     float rollRateSuper = 0.7f;
@@ -170,6 +170,7 @@ public:
     void arm() {
         Serial.println("arming");
         Serial2.println("arming");
+        reset();
         mFL->arm();
         mFR->arm();
         mBL->arm();
@@ -243,16 +244,6 @@ private:
         rollRateAdjust = rateRollPID.compute(ins->getRollRate(), desRollRate);
         pitchRateAdjust = ratePitchPID.compute(ins->getPitchRate(), desPitchRate);
         yawRateAdjust = rateYawPID.compute(ins->getYawRate(), desYawRate);
-    }
-
-    void reset() {
-        ratePitchPID.reset();
-        rateYawPID.reset();
-        rateRollPID.reset();
-
-        levelPitchPID.reset();
-        levelYawPID.reset();
-        levelRollPID.reset();
     }
 
     void crop(float& val, float lim) {
@@ -366,6 +357,16 @@ private:
         levelRollPID.iEnabled = airborne;
         levelPitchPID.iEnabled= airborne;
         levelYawPID.iEnabled  = airborne;
+    }
+
+    void reset() {
+        rateRollPID.reset();
+        ratePitchPID.reset();
+        rateYawPID.reset();
+        levelRollPID.reset();
+        levelPitchPID.reset();
+        levelYawPID.reset();
+        ins->resetAltitude();
     }
 
     float getMaxAbsAttitudeChanel() {

@@ -4,6 +4,7 @@
 #include <maths.h>
 
 #define G 9.807
+#define EARTH_CIRCUM 40075000.0 //meters
 
 class ComplementaryFilter : public SensorFusion {
 public:
@@ -11,6 +12,7 @@ public:
 
     float accInfluence = 0.002;
     float magInfluence = 0.002;
+    double baroAltSpeed = 0;
 
     void begin() {
         // nothing to do
@@ -70,14 +72,20 @@ private:
     uint64_t lastGPS = 0;
     uint64_t lastGPSProcessed = 0;
 
-    float baroAltitude = 0;
+    double baroAltitude = 0;
     double baroOffset = 0;
     double lastRawBaroAltitude = 0;
-    float lastBaroAlt = 0;
-    float baroAltSpeed = 0;
+    double lastBaroAlt = 0;
 
     bool useDroneOptimization = true;
     bool headDown = false;
+    
+    // GPS
+    double centerLat = 0;
+    double centerLng = 0;
+    double lastLat = 0;
+    double lastLng = 0;
+
 
     void processAcc(const Vec3 acc, const uint32_t deltaT) {
         float elapsedSeconds = deltaT / 1000000.0f;
@@ -112,11 +120,11 @@ private:
         // accel /= 2.0;//strange but works
         vel += accel * elapsedSeconds;
         
-        double minOff = 3;
+        double minOff = 1;// Meter
         float baroAltitudeInfl = 0.0001;
         // float baroAltitudeSpdInfl = 0.001;
         if(baroAltitude < loc.z - minOff || baroAltitude > loc.z + minOff) {
-            baroAltitudeInfl = 0.01;
+            baroAltitudeInfl = abs(baroAltitude - loc.z) * 0.001;
         }
 
         //location
@@ -125,7 +133,11 @@ private:
         loc.x = 0;
         loc.y = 0;
 
+        // double zBefore = loc.z;
         loc.z = loc.z * (1 - baroAltitudeInfl) + baroAltitude * baroAltitudeInfl;
+
+        // double zDiff = zBefore - loc.z;
+
         vel.z = vel.z * (1 - baroAltitudeInfl) + baroAltSpeed * baroAltitudeInfl;
 
         // loc = accel.clone();
@@ -158,35 +170,54 @@ private:
     }
 
     void processBaroAltitude(const double altitude, const uint32_t deltaT) {
+        float elapsedSeconds = deltaT / 1000000.0f;
         lastRawBaroAltitude = altitude;
         if(baroOffset == 0.0) {
             baroOffset = altitude;
         }
         const double altitudeFiltered = altitude - baroOffset;
         baroAltitude = altitudeFiltered;
-        float elapsedSeconds = deltaT / 1000000.0f;
-        static double lastBaroAlt = 0.0;
+
         if(lastBaroAlt == 0.0) {
             lastBaroAlt = altitudeFiltered;
         }
-        double tmpBaroSpd = (altitudeFiltered - lastBaroAlt) / elapsedSeconds;
-        baroAltSpeed = lowPassFilter(baroAltSpeed, tmpBaroSpd, 0.05);
-        lastBaroAlt = altitudeFiltered;
+        double tmpBaroSpd = (baroAltitude - lastBaroAlt) / elapsedSeconds;
+        baroAltSpeed = lowPassFilter(baroAltSpeed, tmpBaroSpd, 0.0000001);
+        lastBaroAlt = baroAltitude;
     }
 
     void processGPS(GPS gps) {
-        /**
-         * Todo
-         */
+        if(gps.locationValid) {
+            if(centerLat == 0) {
+                centerLat = gps.lat;
+                centerLng = gps.lng;
+            }
+            loc.y = (gps.lat - centerLat) * (EARTH_CIRCUM / 360.0);
+            loc.x = (gps.lng - centerLng) * (EARTH_CIRCUM / 360.0) * cos(gps.lng * DEG_TO_RAD);
+            lastLat = gps.lat;
+            lastLng = gps.lng;
+        }
+        if(gps.speedValid && gps.courseValid) {
+            /**
+             * TODO: vel x / y
+             */
+        }
     }
 
     void reset() {
         rot = Quaternion();
         loc = Vec3();
         vel = Vec3();
+        centerLat = lastLat;
+        centerLng = lastLng;
+        resetAltitude();
+    }
+
+    void resetAltitude() {
         baroOffset = lastRawBaroAltitude;
         lastBaroAlt = 0;
         baroAltSpeed = 0;
+        loc.z = 0;
     }
 
     static double lowPassFilter(double prevFiltered, double now, double smoothing) {

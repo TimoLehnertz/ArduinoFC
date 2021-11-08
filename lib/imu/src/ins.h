@@ -19,6 +19,7 @@ public:
     void handle() {getSensorFusion()->handle();}
 
     void reset() {getSensorFusion()->reset();}
+    void resetAltitude() {getSensorFusion()->resetAltitude();}
 
     /**
      * Getters /Setters

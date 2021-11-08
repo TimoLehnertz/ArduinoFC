@@ -52,6 +52,7 @@ public:
     void end();
 
     void postSensorData(const char* sensorName, const char* subType, float value);
+    void postSensorDataDouble(const char* sensorName, const char* subType, double value);
     void postSensorDataInt(const char* sensorName, const char* subType, uint64_t value);
     void postSensorData(const char* sensorName, PID pid);
 
@@ -105,7 +106,7 @@ private:
 
     char buffer[256];
     byte bufferCount = 0;
-    int telemetryFreq = 60; //Hz
+    int telemetryFreq = 20; //Hz
     uint64_t telemUs = 1000000 / telemetryFreq;
     uint64_t lastTelem = 0;
 

@@ -129,7 +129,7 @@ struct GPS : public Sensor{
     int centisecond;
 
     //speed
-    float speed; //km/h
+    float speed; //m/s
     bool speedValid = false;
 
     //course
