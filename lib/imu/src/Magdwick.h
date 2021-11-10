@@ -154,6 +154,10 @@ public:
         lastUpdate = micros();
     }
 
+    void reset() {
+        
+    }
+
     void resetAltitude() {
         loc.z = 0;
     }

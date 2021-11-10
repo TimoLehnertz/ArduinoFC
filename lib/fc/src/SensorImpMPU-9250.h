@@ -81,14 +81,10 @@ public:
         char setTo5Hz[14] = {0xB5, 0x62, 0x06, 0x08, 0x06, 0x00, 0xC8/*200ms*/, 0x00, 0x01, 0x00, 0x01, 0x00, 0xDE, 0x6A};
         Serial1.write(setTo5Hz, 14);
         delay(200);
-        // char setTo57kbs[28] = { 0xB5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xD0, 0x08, 0x00, 0x00,
-        //                         0x00, 0xE1, 0x00, 0x00, 0x07, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE2, 0xE1};
-        // Serial1.write(setTo57kbs, 28);
-        const char setTo115200[] = "PUBX,41,1,3,3,115200,0";
-        Serial1.write(setTo115200);
-        delay(200);
-        // Serial1.end();
-        // Serial1.begin(57600);
+        char setTo57kbs[28] = {0xB5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xD0, 0x08, 0x00, 0x00, 0x00, 0xE1, 0x00, 0x00, 0x23, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0xA9};
+        Serial1.write(setTo57kbs, 28);
+        Serial1.end();
+        Serial1.begin(57600);
     }
 
     void initBmp280() {
@@ -200,28 +196,31 @@ public:
             }
             lastBaro = millis();
             baro.lastPollTime = micros() - timeTmp;
-        } else {
-            /**
-             * MPU9250
-             */
-            mpu9250.readSensor();
-            acc.update (getAccRaw() - accOffset);
-            acc.lastPollTime = micros() - timeTmp;
-            timeTmp = micros();
-            gyro.update(getGyrocRaw().toDeg() - gyroOffset);
-            gyro.lastPollTime = micros() - timeTmp;
-            timeTmp = micros();
-            mag.update (mpu9250.getMagX_uT(), mpu9250.getMagY_uT(), mpu9250.getMagZ_uT());
-            mag.lastPollTime = micros() - timeTmp;
-            timeTmp = micros();
         }
+        /**
+         * MPU9250
+         */
+        mpu9250.readSensor();
+        Vec3 accRaw = getAccRaw();
+        if(accRaw.getLength() != 0) {
+            acc.update (accRaw - accOffset);
+        }
+        acc.lastPollTime = micros() - timeTmp;
+        timeTmp = micros();
+        Vec3 gyroRaw = getGyrocRaw();
+        gyro.update(gyroRaw.toDeg() - gyroOffset);
+        gyro.lastPollTime = micros() - timeTmp;
+        timeTmp = micros();
+        mag.update (mpu9250.getMagX_uT(), mpu9250.getMagY_uT(), mpu9250.getMagZ_uT());
+        mag.lastPollTime = micros() - timeTmp;
+        timeTmp = micros();
 
         // /**
         //  * GPS
         //  */
         while (Serial1.available()) {
             char c = Serial1.read();
-            Serial.write(c);
+            // Serial.write(c);
             if (gpsSensor.encode(c)) {
                 timeTmp = micros();
                 gps.locationValid = gpsSensor.location.isValid();
@@ -374,7 +373,11 @@ public:
         const int sampleCount = 100;
         for (size_t i = 0; i < sampleCount; i++) {
             mpu9250.readSensor();
-            avg += getGyrocRaw().toDeg();
+            Vec3 raw = getGyrocRaw().toDeg();
+            avg += raw;
+            // if(raw.getLength() == 0) {
+            //     Serial.println("Gy");
+            // }
             delay(20);
         }
         gyroOffset = (avg / (double) sampleCount);

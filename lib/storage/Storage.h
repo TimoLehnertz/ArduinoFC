@@ -3,14 +3,14 @@
 #include <Maths.h>
 #include <pid.h>
 
-#define STORAGE_VERSION 31415 // 3.14159265359
+#define STORAGE_VERSION 3141 // 3.14159265359
 
-#define STORAGE_SIZE_BOOL       (sizeof(bool) * 1)
-#define STORAGE_SIZE_FLOAT      (sizeof(float) * 1)
+#define STORAGE_SIZE_BOOL       (sizeof(bool)   * 1)
+#define STORAGE_SIZE_FLOAT      (sizeof(float)  * 1)
 #define STORAGE_SIZE_VEC3       (sizeof(double) * 3)
 #define STORAGE_SIZE_QUATERNION (sizeof(double) * 4)
 #define STORAGE_SIZE_MATRIX3    (sizeof(double) * 9)
-#define STORAGE_SIZE_PID        (sizeof(float) * 6)
+#define STORAGE_SIZE_PID        (sizeof(float)  * 6)
 
 enum BoolValues {
     propsIn,
@@ -77,6 +77,9 @@ enum PidValues {
     levelPidR,
     levelPidP,
     levelPidY,
+
+    altitudePid,
+    velPid,
 
     PidValuesCount
 };

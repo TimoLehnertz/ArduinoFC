@@ -33,11 +33,7 @@ public:
     virtual void handle() = 0;
     virtual void resetAltitude() = 0;
     
-    void reset() {
-        rot = Quaternion();
-        loc = Vec3();
-        vel = Vec3();
-    }
+    virtual void reset() = 0;
 
     Quaternion getAttitude() {
         return rot;

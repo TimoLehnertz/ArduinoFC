@@ -143,12 +143,14 @@ void Storage::writeDefaults() {
     PID levelR_PID   (LEVEL_PID_RP,  LEVEL_PID_RI, LEVEL_PID_RD, LEVEL_PID_RD_LPF, LEVEL_PID_R_MAX);
     PID levelP_PID   (LEVEL_PID_PP,  LEVEL_PID_PI, LEVEL_PID_PD, LEVEL_PID_PD_LPF, LEVEL_PID_P_MAX);
     PID levelY_PID   (LEVEL_PID_YP,  LEVEL_PID_YI, LEVEL_PID_YD, LEVEL_PID_YD_LPF, LEVEL_PID_Y_MAX);
+    PID altitudePid  (ATITUDE_PID_P,     ATITUDE_PID_I,  ATITUDE_PID_D,  ATITUDE_PID_D_LPF,  ATITUDE_PID_MAX);
+    PID velPid       (VEL_PID_P,         VEL_PID_I,      VEL_PID_D,      VEL_PID_D_LPF,      VEL_PID_P);
 
-    write(FloatValues::insAccMaxG, 0.2);
-    write(FloatValues::accLPF, 0.8f);
+    write(FloatValues::insAccMaxG, 1.0);
+    write(FloatValues::accLPF, 0.1f);
     write(FloatValues::gyroLPF, 1.0f);
-    write(FloatValues::accInsInf, 0.007f);
-    write(FloatValues::magInsInf, 0.02f);
+    write(FloatValues::accInsInf, 0.0002f);
+    write(FloatValues::magInsInf, 0.00f);
     write(FloatValues::antiGravityMul, 1.0f);
     write(FloatValues::boostLpf, 0.005f);
     write(FloatValues::boostSpeed, 40.0f);
@@ -164,20 +166,25 @@ void Storage::writeDefaults() {
     write(PidValues::ratePidP,      rateP_PID);
     write(PidValues::ratePidY,      rateY_PID);
 
-    write(PidValues::levelPidR,    levelR_PID);
-    write(PidValues::levelPidP,    levelP_PID);
-    write(PidValues::levelPidY,    levelY_PID);
+    write(PidValues::levelPidR,     levelR_PID);
+    write(PidValues::levelPidP,     levelP_PID);
+    write(PidValues::levelPidY,     levelY_PID);
 
-    write(FloatValues::loopFreqRate, 2000);
-    write(FloatValues::loopFreqLevel, 2000);
+    write(PidValues::altitudePid,   altitudePid);
+
+    write(PidValues::velPid,        velPid);
+    
+
+    write(FloatValues::loopFreqRate, 4000);
+    write(FloatValues::loopFreqLevel, 4000);
 
     write(FloatValues::iRelaxMinRate, I_RELAX_MIN_RATE);
 
-    write(Vec3Values::accOffset,    Vec3(-0.1754f, -0.2355f, 0.1227f));
-    write(Vec3Values::accScale,     Vec3(0.9971, 0.9975, 0.9928));
-    write(Vec3Values::gyroOffset,   Vec3(1.5007f, 0.2541f, 0.2211f));
-    write(Vec3Values::magOffset,    Vec3(6.5348, 10.6397, -43.9933));
-    write(Vec3Values::magScale,     Vec3(1.0142, 1.0106, 0.9761));
+    write(Vec3Values::accOffset,    Vec3(0, 0, 0));
+    write(Vec3Values::accScale,     Vec3(1, 1, 1));
+    write(Vec3Values::gyroOffset,   Vec3(0, 0, 0));
+    write(Vec3Values::magOffset,    Vec3(0, 0, 0));
+    write(Vec3Values::magScale,     Vec3(1, 1, 1));
 
 
     write(QuaternionValues::accAngleOffset,  Quaternion());

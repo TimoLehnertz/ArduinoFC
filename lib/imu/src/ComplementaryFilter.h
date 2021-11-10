@@ -39,8 +39,9 @@ public:
             lastBaroProcessed = micros();
         }
         if(!sensors->gps.isError() && sensors->gps.lastChange != lastGPS) {
-            processGPS(sensors->gps);
+            processGPS(sensors->gps, micros() - lastGPSProcessed);
             lastGPS = sensors->gps.lastChange;
+            lastGPSProcessed = micros();
         }
     }
 
@@ -117,29 +118,21 @@ private:
         //rotate acceleration
         rot.rotate(accel);
         accel -= Vec3(0, 0, G);
-        // accel /= 2.0;//strange but works
         vel += accel * elapsedSeconds;
         
-        double minOff = 1;// Meter
-        float baroAltitudeInfl = 0.0001;
-        // float baroAltitudeSpdInfl = 0.001;
-        if(baroAltitude < loc.z - minOff || baroAltitude > loc.z + minOff) {
-            baroAltitudeInfl = abs(baroAltitude - loc.z) * 0.001;
-        }
+        float baroAltitudeInfl = abs(baroAltitude - loc.z) * 0.0001;
+
+        // vel.x *= 0.999;
+        // vel.y *= 0.999;
 
         //location
         loc += vel * elapsedSeconds;
 
-        loc.x = 0;
-        loc.y = 0;
+        // loc.x = 0;
+        // loc.y = 0;
 
-        // double zBefore = loc.z;
         loc.z = loc.z * (1 - baroAltitudeInfl) + baroAltitude * baroAltitudeInfl;
-
-        // double zDiff = zBefore - loc.z;
-
         vel.z = vel.z * (1 - baroAltitudeInfl) + baroAltSpeed * baroAltitudeInfl;
-
         // loc = accel.clone();
     }
 
@@ -186,7 +179,8 @@ private:
         lastBaroAlt = baroAltitude;
     }
 
-    void processGPS(GPS gps) {
+    void processGPS(GPS gps, uint64_t deltaT) {
+        static Vec3 lastGPSloc = Vec3();
         if(gps.locationValid) {
             if(centerLat == 0) {
                 centerLat = gps.lat;
@@ -196,11 +190,10 @@ private:
             loc.x = (gps.lng - centerLng) * (EARTH_CIRCUM / 360.0) * cos(gps.lng * DEG_TO_RAD);
             lastLat = gps.lat;
             lastLng = gps.lng;
-        }
-        if(gps.speedValid && gps.courseValid) {
-            /**
-             * TODO: vel x / y
-             */
+            lastGPSloc = loc.clone();
+            if(lastGPSloc.getLength() != 0) {
+                vel = (lastGPSloc - loc) * (deltaT / 1000000.0);
+            }
         }
     }
 
@@ -215,7 +208,7 @@ private:
 
     void resetAltitude() {
         baroOffset = lastRawBaroAltitude;
-        lastBaroAlt = 0;
+        lastBaroAlt = baroAltitude;
         baroAltSpeed = 0;
         loc.z = 0;
     }

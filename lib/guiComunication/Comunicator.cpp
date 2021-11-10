@@ -179,13 +179,15 @@ void Comunicator::postTelemetry() {
     postSensorData("RateAdj", "Roll", fc->rollRateAdjust);
     postSensorData("RateAdj", "Pitch", fc->pitchRateAdjust);
     postSensorData("RateAdj", "Yaw", fc->yawRateAdjust);
-    postSensorData("Rate PID Roll", fc->rateRollPID);
-    postSensorData("Rate PID Pitch", fc->ratePitchPID);
-    postSensorData("Rate PID Yaw", fc->rateYawPID);
-    postSensorData("Level PID Roll", fc->levelRollPID);
-    postSensorData("Level PID Pitch", fc->levelPitchPID);
+    // postSensorData("Rate PID Roll", fc->rateRollPID);
+    // postSensorData("Rate PID Pitch", fc->ratePitchPID);
+    // postSensorData("Rate PID Yaw", fc->rateYawPID);
+    // postSensorData("Level PID Roll", fc->levelRollPID);
+    // postSensorData("Level PID Pitch", fc->levelPitchPID);
+    postSensorData("Altitude PID", fc->altitudePID);
+    postSensorData("Vel PID", fc->velPID);
     postSensorData("Anti Gravity", "boost", fc->iBoost);
-    postSensorData("Flight mode", "boost", fc->flightMode);
+    postSensorDataInt("Flight mode", "Mode", fc->flightMode);
   }
   if(useBatTelem) {
     postSensorData("vBat", "Voltage", sensors->bat.vBat);
@@ -402,6 +404,15 @@ void Comunicator::processSerialLine() {
     if(strncmp("LEVEL_PID_Y", command, 11) == 0) {
       postResponse(uid, fc->levelYawPID);
     }
+
+    if(strncmp("ALTITUDE_PID", command, 12) == 0) {
+      postResponse(uid, fc->altitudePID);
+    }
+
+    if(strncmp("VEL_PID", command, 7) == 0) {
+      postResponse(uid, fc->velPID);
+    }
+
     if(strncmp("I_RELAX_MIN_RATE", command, 16) == 0) {
       postResponse(uid, fc->iRelaxMinRate);
     }
@@ -665,6 +676,18 @@ void Comunicator::processSerialLine() {
       postResponse(uid, value);
       fc->levelYawPID = PID(value);
     }
+
+    if(strncmp("ALTITUDE_PID", command, 12) == 0) {
+      postResponse(uid, value);
+      fc->altitudePID = PID(value);
+    }
+
+    if(strncmp("VEL_PID", command, 7) == 0) {
+      postResponse(uid, value);
+      fc->velPID = PID(value);
+    }
+
+
     if(strncmp("I_RELAX_MIN_RATE", command, 16) == 0) {
       postResponse(uid, value);
       fc->iRelaxMinRate = atof(value);
@@ -898,6 +921,9 @@ void Comunicator::saveEEPROM() {
   Storage::write(PidValues::ratePidP,   fc->ratePitchPID);
   Storage::write(PidValues::ratePidY,   fc->rateYawPID);
 
+  Storage::write(PidValues::altitudePid,fc->altitudePID);
+  Storage::write(PidValues::velPid,     fc->velPID);
+
   Storage::write(PidValues::levelPidR,  fc->levelRollPID);
   Storage::write(PidValues::levelPidP,  fc->levelPitchPID);
   Storage::write(PidValues::levelPidY,  fc->levelYawPID);
@@ -944,6 +970,10 @@ void Comunicator::readEEPROM() {
   fc->levelRollPID    = Storage::read(PidValues::levelPidR);
   fc->levelPitchPID   = Storage::read(PidValues::levelPidP);
   fc->levelYawPID     = Storage::read(PidValues::levelPidY);
+
+  fc->altitudePID     = Storage::read(PidValues::altitudePid);
+
+  fc->velPID          = Storage::read(PidValues::velPid);
 
   loopFreqRate = Storage::read(FloatValues::loopFreqRate);
   loopFreqLevel = Storage::read(FloatValues::loopFreqLevel);

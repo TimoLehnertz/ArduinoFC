@@ -153,9 +153,9 @@ int MPU9250::begin(){
   // instruct the MPU9250 to get 7 bytes of data from the AK8963 at the sample rate
   readAK8963Registers(AK8963_HXL,7,_buffer);
   // estimate gyro bias
-  if (calibrateGyro() < 0) {
-    return -20;
-  }
+  // if (calibrateGyro() < 0) {
+  //   return -20;
+  // }
   // successful init, return 1
   return 1;
 }

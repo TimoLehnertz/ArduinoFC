@@ -54,7 +54,7 @@ void handleLoopFreq() {
 void setup() {
   Serial.begin(115200);
   Serial2.begin(115200);
-  // delay(2000);
+  // delay(10000);
   Storage::begin();
   com.begin();
   crsf.begin();
