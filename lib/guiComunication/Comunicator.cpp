@@ -458,19 +458,19 @@ void Comunicator::processSerialLine() {
     command = buffer + 6;
     if(strncmp("ACC_CALIB_QUICK", command, 15) == 0) {
       Serial.println("Calibrating Accelerometer(Quick)");
-      sensors->calibrateAccQuick();
+      sensors->calibrateAcc();
       Serial.print("Done! Offset: ");
-      sensors->getAccOffset().println(Serial);
+      sensors->getAccOffset().println();
       Serial.print(", Scale: ");
-      sensors->getAccScale().println(Serial);
+      sensors->getAccScale().println();
     }
     if(strncmp("ACC_CALIB", command, 9) == 0) {
       Serial.println("Calibrating Accelerometer(full)");
       sensors->calibrateAcc();
       Serial.print("Done! Offset: ");
-      sensors->getAccOffset().println(Serial);
+      sensors->getAccOffset().println();
       Serial.print(", Scale: ");
-      sensors->getAccScale().println(Serial);
+      sensors->getAccScale().println();
     }
     if(strncmp("GYRO_CALIB", command, 10) == 0) {
       Serial.println("Calibrating Gyroscope");
@@ -480,9 +480,12 @@ void Comunicator::processSerialLine() {
     }
     if(strncmp("MAG_CALIB", command, 9) == 0) {
         Serial.println("Calibrating magnetometer");
+        delay(100);
         sensors->calibrateMag();
-        Serial.println("Done!");
-        // useMagTelem = true;
+        Serial.print("Done! Offset: ");
+        sensors->getMagOffset().println();
+        Serial.print(", Scale: ");
+        sensors->getMagScale().println();
     }
     if(strncmp("STOP_MAG_CALIB", command, 14) == 0) {
         useMagTelem = false;
@@ -749,10 +752,6 @@ void Comunicator::processSerialLine() {
     if(strncmp("SENSOR_FUSION", command, 13) == 0) {
       postResponse(uid, value);
       ins->setFusionAlgorythm(SensorFusion::FusionAlgorythm(int(value)));
-    }
-    if(strncmp("ACC_CALIB_SIDE", command, 14) == 0) {
-      sensors->calibrateAccSide(SensorInterface::Side(atoi(value)));
-      postResponse(uid, value);
     }
   }
 }

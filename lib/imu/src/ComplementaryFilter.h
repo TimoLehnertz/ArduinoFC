@@ -156,6 +156,7 @@ private:
     }
 
     void processMag(const Vec3 &mag) {
+<<<<<<< HEAD
         static uint32_t magCount = 0;
         magCount++;
         if(magCount == 100) { // first initialization
@@ -167,6 +168,18 @@ private:
         float roll = rot.toEulerZYX().x;
         if(pitch < PI / 4 && pitch > -PI / 4 && roll < PI / 4 && roll > -PI / 4) {
             Quaternion magRot(EulerRotation(roll, pitch, -atan2(mag.y, mag.x)));
+=======
+        float roll = rot.toEulerZYX().x * RAD_TO_DEG;
+        float pitch = rot.toEulerZYX().y * RAD_TO_DEG;
+
+        // Vec3 magFiltered = Vec3();
+        // magFiltered.y = mag.x * cos(pitch) + mag.y * sin(roll) * sin(pitch) - mag.z * cos(roll) * sin(pitch);
+        // magFiltered.x = mag.y * cos(roll) + mag.z *sin(roll);
+
+        double limDeg = 5;
+        if(pitch < limDeg && pitch > -limDeg && roll < limDeg && roll > -limDeg) {
+            Quaternion magRot(EulerRotation(rot.toEulerZYX().x, -rot.toEulerZYX().y, -atan2(mag.y, mag.x)));
+>>>>>>> 55513ac9786fb4369a22c19166a82a193af956bf
             rot = Quaternion::lerp(magRot, rot, 1 - magInfluence);
         }
     }

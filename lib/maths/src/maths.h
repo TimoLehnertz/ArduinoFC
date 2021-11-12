@@ -65,6 +65,9 @@ struct Vec3 {
 
     bool greaterThanEquals(const Vec3& v) const;
 
+    static Vec3 min(const Vec3& a, const Vec3& b);
+    static Vec3 max(const Vec3& a, const Vec3& b);
+
     double absSum() const;
 
     Vec3 clone() const;
@@ -113,7 +116,7 @@ struct Vec3 {
     operator double();
     operator Matrix3();
 
-    void print(Stream &serial) {
+    void print(Stream &serial = Serial) {
         serial.print("(");
         serial.print(x, 5);
         serial.print("|");

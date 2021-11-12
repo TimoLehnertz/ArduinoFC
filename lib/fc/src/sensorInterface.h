@@ -224,8 +224,6 @@ public:
     virtual void setGyroCal(Vec3 degVecOffset) = 0;
     virtual void setMagCal (Vec3 offset, Vec3 scale)  = 0;
 
-    virtual void calibrateAccQuick() = 0;
-    virtual void calibrateAccSide(Side side) = 0;
     virtual void calibrateAcc() = 0;
     virtual void calibrateGyro() = 0;
     virtual void calibrateMag() = 0;
