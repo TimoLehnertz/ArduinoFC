@@ -10,6 +10,7 @@
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
+#include <MechaQMC5883.h>
 
 #define G 9.807
 
@@ -49,8 +50,13 @@ public:
     float baroHz = 50;
     uint32_t lastBaro = 0;
 
+    float magHz = 200;
+    uint32_t lastMag = 0;
+
     MPU9250 mpu9250;
     Adafruit_BMP280 bmp;
+
+    MechaQMC5883 qmc; // I2C Address: 0x0D
 
     MPU9250Sensor() : mpu9250(SPI, 10), bmp(BMP_CS) {}
     
@@ -66,6 +72,15 @@ public:
         initGPS();
 
         initBattery();
+        
+        initMag();
+    }
+
+    void initMag() {
+        Wire.begin();
+        Wire.setClock(1000000);
+        Serial.println("qmc init");
+        qmc.init();
     }
 
     void initBattery() {
@@ -134,28 +149,19 @@ public:
 
     void setAccCal(Vec3 gVecOffset, Vec3 scale) {
         accOffset = gVecOffset.clone();
-        // mpu9250.setAccelCalX(gVecOffset.x * G, scale.x);
-        // mpu9250.setAccelCalY(gVecOffset.y * G, scale.y);
-        // mpu9250.setAccelCalZ(gVecOffset.z * G, scale.z);
     }
 
     void setGyroCal(Vec3 degVecOffset) {
         gyroOffset = degVecOffset.clone();
-        // degVecOffset.toRad();
-        // mpu9250.setGyroBiasX_rads(degVecOffset.x);
-        // mpu9250.setGyroBiasY_rads(degVecOffset.y);
-        // mpu9250.setGyroBiasZ_rads(degVecOffset.z);
     }
 
      void setMagCal(Vec3 offset, Vec3 scale) {
-        mpu9250.setMagCalX(offset.x, scale.x);
-        mpu9250.setMagCalY(offset.y, scale.y);
-        mpu9250.setMagCalZ(offset.z, scale.z);
+        magOffset = offset;
+        magScale = scale;
     }
 
     Vec3 getAccOffset() {
         return accOffset;
-        // return Vec3(mpu9250.getAccelBiasX_mss() / G, mpu9250.getAccelBiasY_mss() / G, mpu9250.getAccelBiasZ_mss() / G);
     }
 
     Vec3 getAccScale() {
@@ -167,15 +173,21 @@ public:
     }
 
     Vec3 getMagOffset() {
-        return Vec3(mpu9250.getMagBiasX_uT(), mpu9250.getMagBiasY_uT(), mpu9250.getMagBiasZ_uT());
+        return magOffset;
     }
 
     Vec3 getMagScale() {
-        return Vec3(mpu9250.getMagScaleFactorX(), mpu9250.getMagScaleFactorY(), mpu9250.getMagScaleFactorZ());
+        return magScale;
     }
 
     Vec3 getAccRaw() {
         return Vec3(mpu9250.getAccelY_G(), -mpu9250.getAccelX_G(), -mpu9250.getAccelZ_G());
+    }
+
+    Vec3 getMagRaw() {
+        int x,y,z;
+        qmc.read(&x, &y, &z);
+        return Vec3(x, y, z);
     }
 
     Vec3 getGyrocRaw() {
@@ -211,8 +223,11 @@ public:
         gyro.update(gyroRaw.toDeg() - gyroOffset);
         gyro.lastPollTime = micros() - timeTmp;
         timeTmp = micros();
-        mag.update (mpu9250.getMagX_uT(), mpu9250.getMagY_uT(), mpu9250.getMagZ_uT());
-        mag.lastPollTime = micros() - timeTmp;
+        if(magHz > 0 && millis() > lastMag + (1000.0f / magHz)) {
+            mag.update ((getMagRaw() + magOffset) * magScale);
+            mag.lastPollTime = micros() - timeTmp;
+            lastMag = millis();
+        }
         timeTmp = micros();
 
         // /**
@@ -287,72 +302,9 @@ public:
      * System has to be perfectly level!
      * Sets the acc scale to one and only calibrates the offset to level
      */
-    void calibrateAccQuick() {
+    void calibrateAcc() {
         Vec3 avg = getAccAvg(100, 20);
         accOffset = (avg - Vec3(0, 0, 1));
-        // Vec3 offset = avg - Vec3(0, 0, -G);
-        // accOffset = 
-        // mpu9250.setAccelCalX(offset.x, 1);
-        // mpu9250.setAccelCalY(offset.y, 1);
-        // mpu9250.setAccelCalZ(offset.z, 1);
-    }
-
-    void calibrateAccSide(Side side) {
-        accSideAvgs[side] = getAccAvg(100, 10);
-        sideCals++;
-        switch(side) {
-            case top: Serial.println("top calibrated"); break;
-            case bottom: Serial.println("bottom calibrated"); break;
-            case left: Serial.println("left calibrated"); break;
-            case right: Serial.println("right calibrated"); break;
-            case front: Serial.println("front calibrated"); break;
-            case back: Serial.println("back calibrated"); break;
-        }
-    }
-
-    void calibrateAcc() {
-        if(sideCals < 6) {
-            Serial.println("Not all sides have been calibrated. Try again!");
-            sideCals = 0;
-            return;
-        }
-        Vec3 scale;
-        scale.x = 1 / ((accSideAvgs[back].x   - accSideAvgs[front].x)  / (2.0 * G)); // 1 / ((max - min) / 2G)
-        scale.y = 1 / ((accSideAvgs[left].y   - accSideAvgs[right].y)  / (2.0 * G));
-        scale.z = 1 / ((accSideAvgs[top].z    - accSideAvgs[bottom].z) / (2.0 * G));
-
-        Vec3 offset = (accSideAvgs[bottom] * scale) - Vec3(0, 0, -G);
-
-        float error = 0;
-        float topError  = abs((accSideAvgs[top]   - Vec3(0, 0, G)).getValue());
-        float rightError= abs((accSideAvgs[right] - Vec3(0,-G, 0)).getValue());
-        float leftError = abs((accSideAvgs[left]  - Vec3(0, G, 0)).getValue());
-        float frontError= abs((accSideAvgs[front] - Vec3(-G,0, 0)).getValue());
-        float backError = abs((accSideAvgs[back]  - Vec3(G, 0, 0)).getValue());
-
-        error = topError + rightError + leftError + frontError + backError;
-
-        Serial.println("Acc calibration errors:");
-        Serial.print("top: ");
-        Serial.print(topError);
-        Serial.print(", right: ");
-        Serial.print(rightError);
-        Serial.print(", left: ");
-        Serial.print(leftError);
-        Serial.print(", front: ");
-        Serial.print(frontError);
-        Serial.print(", back: ");
-        Serial.println(backError);
-
-        Serial.print("Total error: ");
-        Serial.print(error);
-        Serial.println("Mss(9.807 = 1G)");
-
-        mpu9250.setAccelCalX(offset.x, scale.x);
-        mpu9250.setAccelCalY(offset.y, scale.y);
-        mpu9250.setAccelCalZ(offset.z, scale.z);
-
-        sideCals = 0;
     }
 
     Vec3 getAccAvg(uint8_t samples, int delayMs) {
@@ -387,11 +339,31 @@ public:
      * Blocks for 20 seconds
      */
     void calibrateMag() {
-        int error = mpu9250.calibrateMag();
-        if(error < 1) {
-            Serial.print("Failed to calibrate Mag. Error: ");
-            Serial.println(error);
+        Vec3 min = Vec3();
+        Vec3 max = Vec3();
+        double seconds = 20;
+        size_t sampleCount = seconds / (1.0 / magHz);
+        uint32_t lastPrint = 0;
+        for (size_t i = 0; i < sampleCount; i++) {
+            Vec3 magRaw = getMagRaw();
+            min = Vec3::min(min, magRaw);
+            max = Vec3::max(max, magRaw);
+            delay(1000.0f / magHz);
+            if(millis() - lastPrint > 30) {
+                Serial.print("FC_POST_SENSOR MAG;X;");
+                Serial.println(magRaw.x, 5);
+                Serial.print("FC_POST_SENSOR MAG;Y;");
+                Serial.println(magRaw.y, 5);
+                Serial.print("FC_POST_SENSOR MAG;Z;");
+                Serial.println(magRaw.z, 5);
+                lastPrint = millis();
+            }
         }
+        magOffset = (max + min) / -2;
+        min += magOffset;
+        max += magOffset;
+        Vec3 targetRadius = (max.x + max.y + max.z) / 3.0;
+        magScale = targetRadius / max;
     }
 
     void calibrateBat(float actualVoltage) {
@@ -402,6 +374,9 @@ private:
 
     Vec3 gyroOffset = Vec3();//in degrees
     Vec3 accOffset = Vec3();//in G
+
+    Vec3 magOffset = Vec3();
+    Vec3 magScale = Vec3();
 
     bool mpuErrorPrinted = false;
     float vMeasured = 1;

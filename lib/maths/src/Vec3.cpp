@@ -112,6 +112,14 @@ bool Vec3::greaterThanEquals(const Vec3& v) const {
     return x >= v.x && y >= v.y && z >= v.z;
 }
 
+Vec3 Vec3::min(const Vec3& a, const Vec3& b) {
+    return Vec3(a.x < b.x ? a.x : b.x, a.y < b.y ? a.y : b.y, a.z < b.z ? a.z : b.z);
+}
+
+Vec3 Vec3::max(const Vec3& a, const Vec3& b) {
+    return Vec3(a.x > b.x ? a.x : b.x, a.y > b.y ? a.y : b.y, a.z > b.z ? a.z : b.z);
+}
+
 Vec3 Vec3::clone() const {
     return Vec3(x, y, z);
 }

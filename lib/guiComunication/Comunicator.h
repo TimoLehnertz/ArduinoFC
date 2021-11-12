@@ -110,7 +110,7 @@ private:
     uint64_t telemUs = 1000000 / telemetryFreq;
     uint64_t lastTelem = 0;
 
-	int ledFreq = 30;
+	int ledFreq = 120;
 	uint32_t lastLED = 0;
 
     void processSerialLine();
