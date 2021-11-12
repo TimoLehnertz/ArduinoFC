@@ -112,7 +112,7 @@ struct Barometer : public Sensor{
 
 struct GPS : public Sensor{
     bool locationValid = false;
-    float lat, lng, lastLat, lastLng; //degrees
+    double lat, lng, lastLat, lastLng; //degrees
     int similarCount;
 
     //date

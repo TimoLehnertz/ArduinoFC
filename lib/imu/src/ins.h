@@ -35,6 +35,7 @@ public:
     float getGForce()       {return sensors->acc.getVec3().getLength();}
     Vec3 getLocation()      {return getSensorFusion()->getLocation();}
     Vec3 getVelocity()      {return getSensorFusion()->getVelocity();}
+    Vec3 getLocalVelocity()      {return getSensorFusion()->getLocalVelocity();}
     EulerRotation getEulerRotationZYX() {return getSensorFusion()->getEulerAttitudeZYX();}
     Quaternion getQuaternionRotation() {return getSensorFusion()->getAttitude();}
 

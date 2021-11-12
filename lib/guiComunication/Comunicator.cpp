@@ -96,6 +96,10 @@ void Comunicator::postTelemetry() {
     postSensorData("VEL", "X", ins->getVelocity().x);
     postSensorData("VEL", "Y", ins->getVelocity().y);
     postSensorData("VEL", "Z", ins->getVelocity().z);
+
+    postSensorData("VEL(Local)", "X", ins->getLocalVelocity().x);
+    postSensorData("VEL(Local)", "Y", ins->getLocalVelocity().y);
+    postSensorData("VEL(Local)", "Z", ins->getLocalVelocity().z);
   }
 
   if(useQuatTelem) {

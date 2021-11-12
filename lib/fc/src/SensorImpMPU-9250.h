@@ -130,6 +130,7 @@ public:
             mag.error  = Error::NO_ERROR;
             Serial.println("Succsessfully initiated IMU9250");
         }
+        mag.lpf = 0.1;
     }
 
     void setAccCal(Vec3 gVecOffset, Vec3 scale) {
@@ -254,7 +255,9 @@ public:
                 if(gps.altitudeValid) {
                     gps.altitude = gpsSensor.altitude.value();
                 }
-                gps.lastChange = micros();
+                if(micros() - gps.lastChange > 180000) {
+                    gps.lastChange = micros();
+                }
                 gps.lastPollTime = micros() - timeTmp;
             }
         }

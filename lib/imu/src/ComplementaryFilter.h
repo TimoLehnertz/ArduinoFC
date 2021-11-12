@@ -73,6 +73,8 @@ private:
     uint64_t lastGPS = 0;
     uint64_t lastGPSProcessed = 0;
 
+    Vec3 lastMagF = Vec3();
+
     double baroAltitude = 0;
     double baroOffset = 0;
     double lastRawBaroAltitude = 0;
@@ -154,6 +156,13 @@ private:
     }
 
     void processMag(const Vec3 &mag) {
+        static uint32_t magCount = 0;
+        magCount++;
+        if(magCount == 100) { // first initialization
+            Serial.println("rot init by Mag");
+            rot = Quaternion(EulerRotation(0, 0, -atan2(mag.y, mag.x)));;
+        }
+        lastMagF = mag.clone();
         float pitch = rot.toEulerZYX().y;
         float roll = rot.toEulerZYX().x;
         if(pitch < PI / 4 && pitch > -PI / 4 && roll < PI / 4 && roll > -PI / 4) {
@@ -183,22 +192,31 @@ private:
         static Vec3 lastGPSloc = Vec3();
         if(gps.locationValid) {
             if(centerLat == 0) {
-                centerLat = gps.lat;
+                centerLat = -gps.lat;
                 centerLng = gps.lng;
             }
-            loc.y = (gps.lat - centerLat) * (EARTH_CIRCUM / 360.0);
-            loc.x = (gps.lng - centerLng) * (EARTH_CIRCUM / 360.0) * cos(gps.lng * DEG_TO_RAD);
-            lastLat = gps.lat;
+            double gpsInf = 0.04;
+            loc.y = (-gps.lat - centerLat) * (EARTH_CIRCUM / 360.0)                             * gpsInf + loc.y * (1 - gpsInf);
+            loc.x = (gps.lng - centerLng) * (EARTH_CIRCUM / 360.0) * cos(gps.lng * DEG_TO_RAD)  * gpsInf + loc.x * (1 - gpsInf);
+            lastLat = -gps.lat;
             lastLng = gps.lng;
-            lastGPSloc = loc.clone();
             if(lastGPSloc.getLength() != 0) {
-                vel = (lastGPSloc - loc) * (deltaT / 1000000.0);
+                gpsInf *= 2; // reduce amount heavy of acc drift
+                double elapsedSeconds = deltaT / 1000000.0;
+                Vec3 gpsVel = (lastGPSloc - loc) / elapsedSeconds;
+                vel.x = gpsVel.x * gpsInf + vel.x * (1 - gpsInf);
+                vel.y = gpsVel.y * gpsInf + vel.y * (1 - gpsInf);
             }
+            lastGPSloc = loc.clone();
         }
     }
 
     void reset() {
-        rot = Quaternion();
+        if(lastMagF.getLength() != 0) {
+            rot = Quaternion(EulerRotation(0, 0, -atan2(lastMagF.y, lastMagF.x)));;
+        } else {
+            rot = Quaternion();
+        }
         loc = Vec3();
         vel = Vec3();
         centerLat = lastLat;
