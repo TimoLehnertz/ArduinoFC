@@ -220,9 +220,9 @@ public:
 
         float climbRate = map(throttle, 0.0, 1.0, -gpsMaxSpeedVertical, gpsMaxSpeedVertical);
 
-        Vec3 velLocalDesired = Vec3(map(chanels.roll, -1, 1, -gpsMaxSpeedVertical, gpsMaxSpeedVertical), map(chanels.pitch, -1, 1, -gpsMaxSpeedVertical, gpsMaxSpeedVertical), 0);
-        if(velLocalDesired.getLength() > gpsMaxSpeedVertical) velLocalDesired.setLength(gpsMaxSpeedVertical);//constrain to max
-        ins->getQuaternionRotation().rotateReverse(velLocalDesired);//rotate to Global
+        Vec3 velLocalDesired = Vec3(map(chanels.pitch, -1, 1, -gpsMaxSpeedHorizontal, gpsMaxSpeedHorizontal), map(chanels.roll, -1, 1, -gpsMaxSpeedHorizontal, gpsMaxSpeedHorizontal), 0);
+        // if(velLocalDesired.getLength() > gpsMaxSpeedVertical) velLocalDesired.setLength(gpsMaxSpeedVertical);//constrain to max
+        ins->getQuaternionRotation().rotate(velLocalDesired);//rotate to Global
         Vec3 velGlobalDes = velLocalDesired;
 
         switch(flightMode) {
@@ -244,11 +244,16 @@ public:
             case FlightMode::gpsHold: {
                 Vec3 axisPitch = Vec3();
                 axisPitch.x = velPIDx.compute(ins->getVelocity().x, velGlobalDes.x);
-                axisPitch.y = velPIDy.compute(ins->getVelocity().x, velGlobalDes.x);
+                axisPitch.y = velPIDy.compute(ins->getVelocity().y, velGlobalDes.y);
                 
-                ins->getQuaternionRotation().rotate(axisPitch);//rotate to local
+                ins->getQuaternionRotation().rotateReverse(axisPitch);//rotate to local
                 desRollAngle = axisPitch.y;
                 desPitchAngle = axisPitch.x;
+                if(millis() % 100 == 0) {
+                    // Serial.print(velPIDx.i);
+                    // Serial.print(", int: ");
+                    // Serial.println(velPIDx.integrator);
+                }
             }
             case FlightMode::altitudeHold: {
                 if(!autoLiftoff && throttle < 0.9) throttle = 0;
@@ -401,7 +406,7 @@ private:
         /**
          * Never use flight mode with unsufficient sensors
          */
-        flightMode = FlightMode::FlightMode_t(min(flightMode, ins->sensors->getHighestFM(Error::WARNING)));
+        // flightMode = FlightMode::FlightMode_t(min(flightMode, ins->sensors->getHighestFM(Error::WARNING)));
 
         /**
          * Overwrite All

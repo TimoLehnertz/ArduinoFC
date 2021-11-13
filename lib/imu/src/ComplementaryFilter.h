@@ -202,17 +202,19 @@ private:
                 centerLat = -gps.lat;
                 centerLng = gps.lng;
             }
-            double gpsInf = 0.04;
+            double gpsInf = 0.05;
             loc.y = (-gps.lat - centerLat) * (EARTH_CIRCUM / 360.0)                             * gpsInf + loc.y * (1 - gpsInf);
             loc.x = (gps.lng - centerLng) * (EARTH_CIRCUM / 360.0) * cos(gps.lng * DEG_TO_RAD)  * gpsInf + loc.x * (1 - gpsInf);
             lastLat = -gps.lat;
             lastLng = gps.lng;
             if(lastGPSloc.getLength() != 0) {
-                gpsInf *= 2; // reduce amount heavy of acc drift
+                // gpsInf *= 2; // reduce amount heavy of acc drift
                 double elapsedSeconds = deltaT / 1000000.0;
                 Vec3 gpsVel = (lastGPSloc - loc) / elapsedSeconds;
                 vel.x = gpsVel.x * gpsInf + vel.x * (1 - gpsInf);
                 vel.y = gpsVel.y * gpsInf + vel.y * (1 - gpsInf);
+                // vel.x = 0;
+                // vel.y = 0;
             }
             lastGPSloc = loc.clone();
         }

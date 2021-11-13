@@ -43,6 +43,10 @@ float PID::compute(float measurement, float setpoint) {
 }
 
 float PID::compute(float measurement, float setpoint, float gyro) {
+    float minOut = -maxOut;
+    if(this->minOut > -10000000) {
+        minOut = this->minOut;
+    }
     uint64_t now = micros();
     if(dlpf > 1.0f) dlpf = 1.0f;
     if(dlpf < 0.0f) dlpf = 0.0f;
