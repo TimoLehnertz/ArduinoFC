@@ -3,10 +3,8 @@
 // #include "../../src/setup.h"
 
 void Crossfire::handle() {
-    // Serial.println(uart->available());
     while(uart->available()) {
         char c = uart->read();
-        // Serial.write(c);
 
         static uint8_t crsfFramePosition = 0;
         timeUs_t currentTimeUs = micros();
@@ -44,6 +42,9 @@ void Crossfire::handle() {
             crsfFramePosition = 0;
         }
     }
+    if(micros() - lastRcFrame > 3 * 1000000) { // 3 seconds timeout
+        rcConnected = false;
+    }
 }
 
 bool Crossfire::isFailsafe() {
@@ -69,6 +70,10 @@ void Crossfire::handleCrsfFrame(CRSF_Frame_t& frame, int payloadLength) {
      * Telemetry
      **/
     handleTelemetry();
+    if(!rcConnected) {
+        rcConnected = true;
+        rcConnectedTime = micros();
+    }
 }
 
 void Crossfire::handleTelemetry() {

@@ -114,8 +114,6 @@ void Storage::begin() {
         erase();
         EEPROM.put(eepromSize - 5, STORAGE_VERSION);
     }
-    Serial.print("EEPROM size: ");
-    Serial.println(size());
 }
 
 void Storage::erase() {
@@ -158,6 +156,23 @@ void Storage::writeDefaults() {
     write(FloatValues::batMul, 11.9f);
 
     write(FloatValues::insSensorFusion, 0.0f);
+
+    write(FloatValues::insSensorFusion, 0.0f);
+
+    /**
+     * FC
+     */
+    write(FloatValues::angleModeMaxAngle, ANGLE_MODE_MAX_ANGLE);
+    write(FloatValues::gpsMaxSpeedHorizontal, GPS_MAX_SPEED_HORIZONTAL);
+    write(FloatValues::gpsMaxSpeedVertical, GPS_MAX_SPEED_VERTICAL);
+    write(FloatValues::hoverThrottle, HOVER_THROTTLE);
+    write(FloatValues::launchIBoostSeconds, LAUNCH_I_BOOST_SECONDS);
+    write(FloatValues::launchIBoostLevel, LAUNCH_I_BOOST_LEVEL);
+    write(FloatValues::launchIBoostAltitude, LAUNCH_I_BOOST_ALTITUDE);
+
+    write(Vec3Values::rateR, Rates(RATE_RC, RATE_SUPER, RATE_RC_EXPO).toVec3());
+    write(Vec3Values::rateP, Rates(RATE_RC, RATE_SUPER, RATE_RC_EXPO).toVec3());
+    write(Vec3Values::rateY, Rates(RATE_RC, RATE_SUPER, RATE_RC_EXPO).toVec3());
 
     /**
      * PIDs

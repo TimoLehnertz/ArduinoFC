@@ -10,32 +10,29 @@
 #include <Adafruit_NeoPixel.h>
 
 MPU9250Sensor sensors;
+
 INS ins(&sensors);
+
+Crossfire crsf(CRSF_SERIAL_PORT);
 
 OneShotMotor mFL(MOTOR_1);
 OneShotMotor mFR(MOTOR_2);
 OneShotMotor mBL(MOTOR_3);
 OneShotMotor mBR(MOTOR_4);
 
-FC fc(&ins, &mFL, &mFR, &mBL, &mBR);
+FC fc(&ins, &mFL, &mFR, &mBL, &mBR, &crsf);
 
 #define NUMPIXELS 10
 #define PIXEL_PIN 20
 
 Adafruit_NeoPixel pixels(NUMPIXELS, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
-Crossfire crsf(CRSF_SERIAL_PORT);
 
 Comunicator com(&ins, &sensors, &fc, &crsf, &pixels);
 
 uint32_t bootTime;
 
 uint32_t lastLoop = 0;
-
-void loopFrequ(int freq) {
-  int t = 1.0f / freq * 1000000;
-  delayMicroseconds(t  - micros() % t);
-}
 
 void handleLoopFreq() {
   int freq = 1000;

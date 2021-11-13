@@ -2,8 +2,9 @@
 #define storage
 #include <Maths.h>
 #include <pid.h>
+#include <fc.h>
 
-#define STORAGE_VERSION 3141 // 3.14159265359
+#define STORAGE_VERSION 31415 // 3.14159265359
 
 #define STORAGE_SIZE_BOOL       (sizeof(bool)   * 1)
 #define STORAGE_SIZE_FLOAT      (sizeof(float)  * 1)
@@ -11,6 +12,7 @@
 #define STORAGE_SIZE_QUATERNION (sizeof(double) * 4)
 #define STORAGE_SIZE_MATRIX3    (sizeof(double) * 9)
 #define STORAGE_SIZE_PID        (sizeof(float)  * 6)
+#define STORAGE_SIZE_RATES      (sizeof(double) * 3)
 
 enum BoolValues {
     propsIn,
@@ -46,6 +48,18 @@ enum FloatValues {
 
     insSensorFusion,
 
+    angleModeMaxAngle,
+
+    gpsMaxSpeedVertical,
+    gpsMaxSpeedHorizontal,
+
+    hoverThrottle,
+
+    launchIBoostSeconds,
+
+    launchIBoostLevel,
+    launchIBoostAltitude,
+
     FloatValuesCount
 };
 
@@ -55,6 +69,11 @@ enum Vec3Values {
     gyroOffset,
     magOffset,
     magScale,
+
+    //Rates
+    rateR,
+    rateP,
+    rateY,
 
     Vec3ValuesCount
 };
@@ -104,6 +123,7 @@ public:
     static void write(PidValues matVal, PID mat);
 
     static void writeDefaults();
+    static int size();
 
 private:
     static const int eepromOffset = 0;
@@ -117,7 +137,6 @@ private:
     static int quaternionStart();
     static int matrix3Start();
     static int pidStart();
-    static int size();
     static const int offset = 0;
 };
 

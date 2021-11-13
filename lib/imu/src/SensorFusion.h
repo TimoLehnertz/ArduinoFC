@@ -62,7 +62,7 @@ public:
     Vec3 getLocalVelocity() {
         Vec3 velGlobal = vel.clone();
         EulerRotation zRot = EulerRotation(0,0, getYaw());
-        zRot.rotateReverse(velGlobal);
+        zRot.rotate(velGlobal);
         return velGlobal;//(Local)
     }
 

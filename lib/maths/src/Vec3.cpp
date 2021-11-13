@@ -17,20 +17,61 @@ Vec3::Vec3(double x, double y, double z) : x(x), y(y), z(z) {}
 Vec3::Vec3(double v[]) : x(v[0]), y(v[1]), z(v[2]) {}
 
 Vec3::Vec3(char* str) {
+    // if(strlen(str) < 7) return;
+    // int delim1 = strpos2(str, ',');
+    // str[delim1] = 0;
+    // int delim2 = strpos2(str, ',', delim1 + 1);
+    // str[delim2] = 0;
+    // int delim3 = strpos2(str, ',', delim2 + 1);
+    // str[delim3] = 0;
+    // x = atof(str + 1);
+    // y = atof(str + delim2 + 1);
+    // z = atof(str + delim3 + 1);
+
     if(strlen(str) < 7) return;
-    int delim1 = strpos2(str, ',');
-    str[delim1] = 0;
-    int delim2 = strpos2(str, ',', delim1 + 1);
-    str[delim2] = 0;
-    int delim3 = strpos2(str, ')', delim2 + 1);
-    str[delim3] = 0;
-    x = atof(str + 1);
-    y = atof(str + delim1 + 1);
-    z = atof(str + delim2 + 1);
+    int delims[4];
+    delims[0] = 0;
+    bool succsess = true;
+    for (size_t i = 0; i < 4; i++) {
+        int start = i ? delims[i - 1] + 1 : 0;
+        delims[i] = strpos2(str, ',', start);
+        if(delims[i] < 0) {
+            succsess = false;
+            break;
+        }
+        str[delims[i]] = 0;
+    }
+    if(succsess) {
+        x            = atof(str + delims[0] + 1);
+        y            = atof(str + delims[1] + 1);
+        z            = atof(str + delims[2] + 1);
+        // print();
+    } else {
+        Serial.println("Vec3 String was formatted wrongly");
+    }
 }
 
 double Vec3::getLength() const {
     return sqrt(x*x+y*y+z*z);
+}
+
+double Vec3::getLength2D() const {
+    return sqrt(x*x+y*y);
+}
+
+void Vec3::setLength(double len) {
+    double lenBefore = getLength();
+    if(lenBefore > 0) {
+        setFrom(*this / lenBefore * len);
+    }
+}
+
+void Vec3::setLength2D(double len) {
+    double lenBefore = getLength2D();
+    if(lenBefore > 0) {
+        x = x / lenBefore * len;
+        y = y / lenBefore * len;
+    }
 }
 
 double Vec3::dot(const Vec3& v) const {

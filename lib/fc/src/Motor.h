@@ -32,8 +32,7 @@ public:
         writeRaw(map(percentage, 0.0f, 1.0f, minThrottle, maxThrottle));
     }
 
-
-    bool isArmed() { return armed; }
+    virtual bool isArmed() = 0;
 
     void setMinThrottle(float min) { minThrottle = min; };
     void setMaxThrottle(float max) { maxThrottle = max; };

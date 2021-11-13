@@ -189,7 +189,8 @@ void Comunicator::postTelemetry() {
     // postSensorData("Level PID Roll", fc->levelRollPID);
     // postSensorData("Level PID Pitch", fc->levelPitchPID);
     postSensorData("Altitude PID", fc->altitudePID);
-    postSensorData("Vel PID", fc->velPID);
+    postSensorData("Vel PIDx", fc->velPIDx);
+    postSensorData("Vel PIDy", fc->velPIDy);
     postSensorData("Anti Gravity", "boost", fc->iBoost);
     postSensorDataInt("Flight mode", "Mode", fc->flightMode);
   }
@@ -414,7 +415,7 @@ void Comunicator::processSerialLine() {
     }
 
     if(strncmp("VEL_PID", command, 7) == 0) {
-      postResponse(uid, fc->velPID);
+      postResponse(uid, fc->velPIDx);
     }
 
     if(strncmp("I_RELAX_MIN_RATE", command, 16) == 0) {
@@ -450,6 +451,39 @@ void Comunicator::processSerialLine() {
     }
     if(strncmp("SENSOR_FUSION", command, 13) == 0) {
       postResponse(uid, ins->getFusionAlgorythm());
+    }
+    if(strncmp("ANGLE_MODE_MAX_ANGLE", command, 20) == 0) {
+      postResponse(uid, fc->angleModeMaxAngle);
+    }
+    if(strncmp("GPS_MAX_SPEED_HORIZONTAL", command, 24) == 0) {
+      postResponse(uid, fc->gpsMaxSpeedHorizontal);
+    }
+    if(strncmp("GPS_MAX_SPEED_VERTICAL", command, 22) == 0) {
+      postResponse(uid, fc->gpsMaxSpeedVertical);
+    }
+    if(strncmp("HOVER_THROTTLE", command, 14) == 0) {
+      postResponse(uid, fc->hoverThrottle);
+    }
+    if(strncmp("LAUNCH_I_BOOST_SECONDS", command, 22) == 0) {
+      postResponse(uid, fc->launchIBoostSeconds);
+    }
+    if(strncmp("LAUNCH_I_BOOST_LEVEL", command, 20) == 0) {
+      postResponse(uid, fc->launchIBoostLevel);
+    }
+    if(strncmp("LAUNCH_I_BOOST_ALTITUDE", command, 23) == 0) {
+      postResponse(uid, fc->launchIBoostAltitude);
+    }
+    if(strncmp("LAUNCH_I_BOOST_ALTITUDE", command, 23) == 0) {
+      postResponse(uid, fc->launchIBoostAltitude);
+    }
+    if(strncmp("ROLL_RATES", command, 10) == 0) {
+      postResponse(uid, fc->rollRate.toVec3());
+    }
+    if(strncmp("PITCH_RATES", command, 11) == 0) {
+      postResponse(uid, fc->pitchRate.toVec3());
+    }
+    if(strncmp("YAW_RATES", command, 9) == 0) {
+      postResponse(uid, fc->yawRate.toVec3());
     }
   }
 
@@ -592,7 +626,7 @@ void Comunicator::processSerialLine() {
     if(strncmp("QUAT_TELEM", command, 10) == 0) {
       postResponse(uid, value);
       useQuatTelem = value[0] == 't';
-      // useLocTelem = value[0] == 't';
+      useLocTelem = value[0] == 't';
     }
     if(strncmp("BAT_TELEM", command, 9) == 0) {
       postResponse(uid, value);
@@ -691,7 +725,8 @@ void Comunicator::processSerialLine() {
 
     if(strncmp("VEL_PID", command, 7) == 0) {
       postResponse(uid, value);
-      fc->velPID = PID(value);
+      fc->velPIDx = PID(value);
+      fc->velPIDy = PID(value);
     }
 
 
@@ -753,6 +788,46 @@ void Comunicator::processSerialLine() {
       postResponse(uid, value);
       ins->setFusionAlgorythm(SensorFusion::FusionAlgorythm(int(value)));
     }
+    if(strncmp("ANGLE_MODE_MAX_ANGLE", command, 20) == 0) {
+      postResponse(uid, value);
+      fc->angleModeMaxAngle = atof(value);
+    }
+    if(strncmp("GPS_MAX_SPEED_HORIZONTAL", command, 24) == 0) {
+      postResponse(uid, value);
+      fc->gpsMaxSpeedHorizontal = atof(value);
+    }
+    if(strncmp("GPS_MAX_SPEED_VERTICAL", command, 22) == 0) {
+      postResponse(uid, value);
+      fc->gpsMaxSpeedVertical = atof(value);
+    }
+    if(strncmp("HOVER_THROTTLE", command, 14) == 0) {
+      postResponse(uid, value);
+      fc->hoverThrottle = atof(value);
+    }
+    if(strncmp("LAUNCH_I_BOOST_SECONDS", command, 22) == 0) {
+      postResponse(uid, value);
+      fc->launchIBoostSeconds = atof(value);
+    }
+    if(strncmp("LAUNCH_I_BOOST_LEVEL", command, 20) == 0) {
+      postResponse(uid, value);
+      fc->launchIBoostLevel = atof(value);
+    }
+    if(strncmp("LAUNCH_I_BOOST_ALTITUDE", command, 23) == 0) {
+      postResponse(uid, value);
+      fc->launchIBoostAltitude = atof(value);
+    }
+    if(strncmp("ROLL_RATES", command, 10) == 0) {
+      postResponse(uid, value);
+      fc->rollRate = Rates(value);
+    }
+    if(strncmp("PITCH_RATES", command, 11) == 0) {
+      postResponse(uid, value);
+      fc->pitchRate = Rates(value);
+    }
+    if(strncmp("YAW_RATES", command, 9) == 0) {
+      postResponse(uid, value);
+      fc->yawRate = Rates(value);
+    }
   }
 }
 
@@ -760,24 +835,24 @@ void Comunicator::postResponse(char* uid, Vec3 vec) {
   Serial.print("FC_RES ");
   Serial.print(uid);
   Serial.print(" ");
-  Serial.print("(");
+  Serial.print(",");
   Serial.print(vec.x, 5);
-  Serial.print("|");
+  Serial.print(",");
   Serial.print(vec.y, 5);
-  Serial.print("|");
+  Serial.print(",");
   Serial.print(vec.z, 5);
-  Serial.println(")");
+  Serial.println(",");
 
   Serial2.print("FC_RES ");
   Serial2.print(uid);
   Serial2.print(" ");
-  Serial2.print("(");
+  Serial2.print(",");
   Serial2.print(vec.x, 5);
-  Serial2.print("|");
+  Serial2.print(",");
   Serial2.print(vec.y, 5);
-  Serial2.print("|");
+  Serial2.print(",");
   Serial2.print(vec.z, 5);
-  Serial2.println(")");
+  Serial2.println(",");
 }
 
 void Comunicator::postResponse(char* uid, Matrix3 mat) {
@@ -869,6 +944,7 @@ void Comunicator::postResponse(char* uid, PID pid) {
   Serial.print("FC_RES ");
   Serial.print(uid);
   Serial.print(" ");
+  Serial.print(",");
   Serial.print(pid.p, 5);
   Serial.print(",");
   Serial.print(pid.i, 5);
@@ -879,11 +955,12 @@ void Comunicator::postResponse(char* uid, PID pid) {
   Serial.print(",");
   Serial.print(pid.maxOut, 5);
   Serial.print(",");
-  Serial.println(pid.useAuxTuning ? "1" : "0");
+  Serial.print(pid.useAuxTuning ? "1" : "0");
+  Serial.println(",");
 
-  Serial2.print("FC_RES ");
   Serial2.print(uid);
   Serial2.print(" ");
+  Serial2.print(",");
   Serial2.print(pid.p, 5);
   Serial2.print(",");
   Serial2.print(pid.i, 5);
@@ -894,7 +971,8 @@ void Comunicator::postResponse(char* uid, PID pid) {
   Serial2.print(",");
   Serial2.print(pid.maxOut, 5);
   Serial2.print(",");
-  Serial2.println(pid.useAuxTuning ? "1" : "0");
+  Serial2.print(pid.useAuxTuning ? "1" : "0");
+  Serial2.println(",");
 }
 
 void Comunicator::saveEEPROM() {
@@ -918,6 +996,19 @@ void Comunicator::saveEEPROM() {
   Storage::write(BoolValues::propsIn, fc->propsIn);
   Storage::write(BoolValues::useLeds, useLeds);
   Storage::write(BoolValues::useAntiGravity, fc->useAntiGravity);
+  
+  //FC
+  Storage::write(FloatValues::angleModeMaxAngle, fc->angleModeMaxAngle);
+  Storage::write(FloatValues::gpsMaxSpeedHorizontal, fc->gpsMaxSpeedHorizontal);
+  Storage::write(FloatValues::gpsMaxSpeedVertical, fc->gpsMaxSpeedVertical);
+  Storage::write(FloatValues::hoverThrottle, fc->hoverThrottle);
+  Storage::write(FloatValues::launchIBoostSeconds, fc->launchIBoostSeconds);
+  Storage::write(FloatValues::launchIBoostLevel, fc->launchIBoostLevel);
+  Storage::write(FloatValues::launchIBoostAltitude, fc->launchIBoostAltitude);
+
+  Storage::write(Vec3Values::rateR, fc->rollRate.toVec3());
+  Storage::write(Vec3Values::rateP, fc->pitchRate.toVec3());
+  Storage::write(Vec3Values::rateY, fc->yawRate.toVec3());
 
  //PIDs
   Storage::write(PidValues::ratePidR,   fc->rateRollPID);
@@ -925,7 +1016,7 @@ void Comunicator::saveEEPROM() {
   Storage::write(PidValues::ratePidY,   fc->rateYawPID);
 
   Storage::write(PidValues::altitudePid,fc->altitudePID);
-  Storage::write(PidValues::velPid,     fc->velPID);
+  Storage::write(PidValues::velPid,     fc->velPIDx);
 
   Storage::write(PidValues::levelPidR,  fc->levelRollPID);
   Storage::write(PidValues::levelPidP,  fc->levelPitchPID);
@@ -944,7 +1035,6 @@ void Comunicator::readEEPROM() {
   Serial.println("Reading from EEPROM");
   Serial2.println("Reading from EEPROM");
 
-  
   // Sensor Interface calibration
   sensors->setAccCal (Storage::read(Vec3Values::accOffset), Storage::read(Vec3Values::accScale));
   sensors->setGyroCal(Storage::read(Vec3Values::gyroOffset));
@@ -965,6 +1055,18 @@ void Comunicator::readEEPROM() {
   useLeds = Storage::read(BoolValues::useLeds);
   useCellVoltage = Storage::read(BoolValues::useVCell);
 
+  //FC
+  fc->angleModeMaxAngle   = Storage::read(FloatValues::angleModeMaxAngle);
+  fc->gpsMaxSpeedHorizontal= Storage::read(FloatValues::gpsMaxSpeedHorizontal);
+  fc->gpsMaxSpeedVertical = Storage::read(FloatValues::gpsMaxSpeedVertical);
+  fc->hoverThrottle       = Storage::read(FloatValues::hoverThrottle);
+  fc->launchIBoostSeconds = Storage::read(FloatValues::launchIBoostSeconds);
+  fc->launchIBoostLevel   = Storage::read(FloatValues::launchIBoostLevel);
+  fc->launchIBoostAltitude= Storage::read(FloatValues::launchIBoostAltitude);
+  fc->rollRate            = Rates(Storage::read(Vec3Values::rateR));
+  fc->pitchRate           = Rates(Storage::read(Vec3Values::rateP));
+  fc->yawRate             = Rates(Storage::read(Vec3Values::rateY));
+
   // PIDs
   fc->rateRollPID     = Storage::read(PidValues::ratePidR);
   fc->ratePitchPID    = Storage::read(PidValues::ratePidP);
@@ -976,7 +1078,8 @@ void Comunicator::readEEPROM() {
 
   fc->altitudePID     = Storage::read(PidValues::altitudePid);
 
-  fc->velPID          = Storage::read(PidValues::velPid);
+  fc->velPIDx         = Storage::read(PidValues::velPid);
+  fc->velPIDy         = Storage::read(PidValues::velPid);
 
   loopFreqRate = Storage::read(FloatValues::loopFreqRate);
   loopFreqLevel = Storage::read(FloatValues::loopFreqLevel);
@@ -985,6 +1088,9 @@ void Comunicator::readEEPROM() {
   fc->antiGravityMul = Storage::read(FloatValues::antiGravityMul);
   fc->boostSpeed = Storage::read(FloatValues::boostSpeed);
   fc->boostLpf = Storage::read(FloatValues::boostLpf);
+
+  Serial.print("EEPROM size: ");
+  Serial.println(Storage::size());
 }
 
 void Comunicator::handleCRSFTelem() {
@@ -992,6 +1098,7 @@ void Comunicator::handleCRSFTelem() {
 
   crsf->updateTelemetryBattery(useCellVoltage ? sensors->bat.vCell : sensors->bat.vBat, fc->gForce, fc->maxGForce, max(0, ((sensors->bat.vCell - 3.3) / 0.9) * 100));
   crsf->updateTelemetryAttitude(-ins->getRoll(), -ins->getPitch(), ins->getYaw());
+  crsf->updateTelemetryGPS(sensors->gps.lat, sensors->gps.lng, ins->getVelocity().getLength2D(), (ins->getEulerRotationZYX().getYaw() * RAD_TO_DEG) / 1, ins->getLocation().z, sensors->gps.satelites);
   switch(fc->flightMode) {
     case FlightMode::none: {
       crsf->updateTelemetryFlightMode("None"); break;
@@ -1007,6 +1114,9 @@ void Comunicator::handleCRSFTelem() {
     }
     case FlightMode::gpsHold: {
       crsf->updateTelemetryFlightMode("GPS"); break;
+    }
+    case FlightMode::wayPoint: {
+      crsf->updateTelemetryFlightMode("wpt"); break;
     }
     case FlightMode::dreaming: crsf->updateTelemetryFlightMode("Err"); break;
     case FlightMode::FlightModeSize: crsf->updateTelemetryFlightMode("Err"); break;

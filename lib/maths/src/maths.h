@@ -41,6 +41,9 @@ struct Vec3 {
     Vec3(double[]);
 
     double getLength() const;
+    double getLength2D() const;
+    void setLength(double len);
+    void setLength2D(double len);
 
     double dot(const Vec3&) const;
     Vec3 crossProduct(const Vec3&) const;

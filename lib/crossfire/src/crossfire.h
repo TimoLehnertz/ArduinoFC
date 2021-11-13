@@ -124,6 +124,9 @@ public:
      **/
     bool isFailsafe();
 
+    bool isRcConnected() { return rcConnected; }
+    uint64_t timeSinceRcConnect() { return micros() - rcConnectedTime; }
+
     /**
      * telemetry updates
      **/
@@ -161,6 +164,8 @@ private:
      **/
     timeUs_t lastRcFrame = 0;
 
+    bool rcConnected = false;
+    uint64_t rcConnectedTime = 0;
 
     /**
      * Telemetry

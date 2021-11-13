@@ -7,7 +7,8 @@ namespace FlightMode {
         level = 2,
         altitudeHold = 3,
         gpsHold = 4,
-        dreaming = 5, // used for sensors-error handling that are not flight critical
+        wayPoint = 5,
+        dreaming = 6, // used for sensors-error handling that are not flight critical
 
         FlightModeSize,
     };

@@ -34,31 +34,39 @@ public:
     void end() {}
 
     void handle() {
-        if(!armed && millis() - armStart > 1000) {
-            armed = true;
-            // Serial.println("arming");
-        }
+        // if(!armed && arming && millis() - armStart > 2000) {
+        //     armed = true;
+        //     arming = false;
+        // }
     }
 
     void writeRaw(float percentage) {
         updateOneShot(oneShotChanel, percentage);
     }
 
+    bool isArmed() {
+        return armed || arming;
+    }
+
     void arm() {
-        writeRaw(-.2);
-        armStart = millis();
+        writeRaw(0.0);
+        armed = true;
+        // arming = true;
+        // armStart = millis();
     }
 
     void disarm() {
         writeRaw(0.00);
         armed = false;
+        // arming = false;
     }
 
-    volatile float speed = 0.0f;
+    // volatile float speed = 0.0f;
     float lastSpeed = 0.0f;
 
 private:
     Servo servo;
+    bool arming = false;
 
     int minPWM = 1000;
     int maxPWM = 2000;
@@ -115,6 +123,7 @@ int registerOneShotMotor(OneShotMotor* m) {
     }
     OneShotTimer* timer = new OneShotTimer(m->pin, timerCount);
 
+    timer->speed = 0;
     int initDelay = 10;
 
     switch(timerCount) {

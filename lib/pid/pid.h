@@ -21,6 +21,8 @@ public:
     float iMul = 1.0f;
     float dMul = 1.0f;
 
+    float minOut = -1;
+
     bool lockI = false;
 
 

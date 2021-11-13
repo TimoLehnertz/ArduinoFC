@@ -103,14 +103,12 @@ public:
     }
 
     void initBmp280() {
-        // delay(5000);
-        // bmp = Adafruit_BMP280(BMP_CS);
         bool succsess = bmp.begin();
         if (succsess) {
             bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
                   Adafruit_BMP280::SAMPLING_X1,     /* Temp. oversampling */
                   Adafruit_BMP280::SAMPLING_X1,     /* Pressure oversampling */
-                  Adafruit_BMP280::FILTER_X4,      /* Filtering. */
+                  Adafruit_BMP280::FILTER_X4,       /* Filtering. */
                   Adafruit_BMP280::STANDBY_MS_1);   /* Standby time. */
             baro.error = Error::NO_ERROR;
             Serial.println("Succsessfully initiated BMP280");
@@ -286,7 +284,7 @@ public:
         vMeasured = (analog * 3.3) / 1023.0;
         bat.vBat = bat.vBat * (1 - batLpf) + batLpf * vMeasured * vBatMul; // lpf
 
-        bat.cellCount = max(bat.cellCount, (int) (bat.vBat / 3.65));
+        bat.cellCount = max(bat.cellCount, (int) ceil((bat.vBat - 0.2) / 4.2));
 
         bat.vCell = bat.vBat / bat.cellCount;
         bat.lastChange = micros();

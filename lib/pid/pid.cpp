@@ -5,18 +5,18 @@
 
 PID::PID() : p(0), i(0), d(0), dlpf(0), maxOut(0), useAuxTuning(false) {registerPID(this);}
 
-PID::PID(float p, float i, float d) : p(p), i(i), d(d), dlpf(1.0f), maxOut(1.0), useAuxTuning(false) {registerPID(this);}
-PID::PID(float p, float i, float d, float dlpf) : p(p), i(i), d(d), dlpf(dlpf), maxOut(1.0), useAuxTuning(false) {registerPID(this);}
-PID::PID(float p, float i, float d, float dlpf, float maxOut) : p(p), i(i), d(d), dlpf(dlpf), maxOut(maxOut), useAuxTuning(false) { registerPID(this); }
+PID::PID(float p, float i, float d) : p(p), i(i), d(d), dlpf(1.0f), maxOut(1.0), useAuxTuning(false), minOut(-1.0) {registerPID(this);}
+PID::PID(float p, float i, float d, float dlpf) : p(p), i(i), d(d), dlpf(dlpf), maxOut(1.0), useAuxTuning(false), minOut(-1.0) {registerPID(this);}
+PID::PID(float p, float i, float d, float dlpf, float maxOut) : p(p), i(i), d(d), dlpf(dlpf), maxOut(maxOut), useAuxTuning(false), minOut(-maxOut) { registerPID(this); }
 
 PID::~PID() { unregisterPID(this); }
 
 PID::PID(char* str) {
     if(strlen(str) < 7) return;
-    int delims[6];
+    int delims[7];
     delims[0] = 0;
     bool succsess = true;
-    for (size_t i = 0; i < 6; i++) {
+    for (size_t i = 0; i < 7; i++) {
         int start = i ? delims[i - 1] + 1 : 0;
         delims[i] = strpos2(str, ',', start);
         if(delims[i] < 0) {
@@ -56,10 +56,10 @@ float PID::compute(float measurement, float setpoint, float gyro) {
      *  Error
      */
     float error = setpoint - measurement;
+    
     /**
      *  Integral
      */
-
     if(!lockI) {
         integrator += i * iBoost * error * t;
     }
@@ -67,7 +67,7 @@ float PID::compute(float measurement, float setpoint, float gyro) {
     if(!iEnabled) integrator = 0;
 
     if(integrator > maxOut) integrator = maxOut;
-    if(integrator < -maxOut) integrator = -maxOut;
+    if(integrator < minOut) integrator = minOut;
 
     /**
      * derivative on measurement
@@ -87,7 +87,7 @@ float PID::compute(float measurement, float setpoint, float gyro) {
      */
     float out = p * error + integrator - derivative;
     if(out > maxOut) out = maxOut;
-    if(out < -maxOut) out = -maxOut;
+    if(out < minOut) out = minOut;
 
     /**
      * Remember variables

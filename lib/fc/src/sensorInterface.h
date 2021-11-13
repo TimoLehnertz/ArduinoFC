@@ -149,7 +149,7 @@ struct GPS : public Sensor{
     GPS() : Sensor(FlightMode::gpsHold) {}
 
     void checkError() {
-        if(micros() - lastChange > 2000000 || satelites < 3) { // 2 sek timeout
+        if(micros() - lastChange > 2000000 || satelites < 3) { // 2 sec timeout
             error = Error::CRITICAL_ERROR;
         } else {
             error = Error::NO_ERROR;
@@ -240,7 +240,7 @@ public:
      * Find the highest Flight mode that is possible to achieve with the sensors with an equal or lower error that maxError
      */
     FlightMode::FlightMode_t getHighestFM(Error::Error_t maxError = Error::WARNING) {
-        FlightMode::FlightMode_t fm = FlightMode::gpsHold;
+        FlightMode::FlightMode_t fm = FlightMode::FlightModeSize;
         for (size_t i = 0; i < sensorCount; i++) {
             if(sensors[i]->error > maxError) {
                 fm = FlightMode::FlightMode_t(min(fm, sensors[i]->minFlightMode - 1));

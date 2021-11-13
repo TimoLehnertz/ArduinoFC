@@ -13,6 +13,7 @@ public:
     float accInfluence = 0.002;
     float magInfluence = 0.002;
     double baroAltSpeed = 0;
+    double magOffsetDeg = 180.0;
 
     void begin() {
         // nothing to do
@@ -74,6 +75,7 @@ private:
     uint64_t lastGPSProcessed = 0;
 
     Vec3 lastMagF = Vec3();
+    uint64_t magCounter = 0;
 
     double baroAltitude = 0;
     double baroOffset = 0;
@@ -124,8 +126,9 @@ private:
         
         float baroAltitudeInfl = abs(baroAltitude - loc.z) * 0.0001;
 
-        // vel.x *= 0.999;
-        // vel.y *= 0.999;
+        // Velocity relaxing
+        vel.x *= 0.9999;
+        vel.y *= 0.9999;
 
         //location
         loc += vel * elapsedSeconds;
@@ -156,31 +159,22 @@ private:
     }
 
     void processMag(const Vec3 &mag) {
-<<<<<<< HEAD
-        static uint32_t magCount = 0;
-        magCount++;
-        if(magCount == 100) { // first initialization
-            Serial.println("rot init by Mag");
-            rot = Quaternion(EulerRotation(0, 0, -atan2(mag.y, mag.x)));;
-        }
-        lastMagF = mag.clone();
-        float pitch = rot.toEulerZYX().y;
-        float roll = rot.toEulerZYX().x;
-        if(pitch < PI / 4 && pitch > -PI / 4 && roll < PI / 4 && roll > -PI / 4) {
-            Quaternion magRot(EulerRotation(roll, pitch, -atan2(mag.y, mag.x)));
-=======
+        EulerRotation magOffset = EulerRotation(0, 0, magOffsetDeg * DEG_TO_RAD);
+        Vec3 magRotated = mag.clone();
+        magOffset.rotate(magRotated);
         float roll = rot.toEulerZYX().x * RAD_TO_DEG;
         float pitch = rot.toEulerZYX().y * RAD_TO_DEG;
 
+        // @Todo: Tilt compensation
         // Vec3 magFiltered = Vec3();
         // magFiltered.y = mag.x * cos(pitch) + mag.y * sin(roll) * sin(pitch) - mag.z * cos(roll) * sin(pitch);
         // magFiltered.x = mag.y * cos(roll) + mag.z *sin(roll);
 
         double limDeg = 5;
         if(pitch < limDeg && pitch > -limDeg && roll < limDeg && roll > -limDeg) {
-            Quaternion magRot(EulerRotation(rot.toEulerZYX().x, -rot.toEulerZYX().y, -atan2(mag.y, mag.x)));
->>>>>>> 55513ac9786fb4369a22c19166a82a193af956bf
-            rot = Quaternion::lerp(magRot, rot, 1 - magInfluence);
+            Quaternion magRot(EulerRotation(rot.toEulerZYX().x, -rot.toEulerZYX().y, atan2(magRotated.y, magRotated.x)));
+            rot = Quaternion::lerp(magRot, rot, magCounter == 10 ? 0.0 : 1 - magInfluence);
+            magCounter++;
         }
     }
 
@@ -225,11 +219,8 @@ private:
     }
 
     void reset() {
-        if(lastMagF.getLength() != 0) {
-            rot = Quaternion(EulerRotation(0, 0, -atan2(lastMagF.y, lastMagF.x)));;
-        } else {
-            rot = Quaternion();
-        }
+        rot = Quaternion();
+        magCounter = 0; // resetts rotation to compass after 100 readings
         loc = Vec3();
         vel = Vec3();
         centerLat = lastLat;

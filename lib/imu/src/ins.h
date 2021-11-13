@@ -21,6 +21,12 @@ public:
     void reset() {getSensorFusion()->reset();}
     void resetAltitude() {getSensorFusion()->resetAltitude();}
 
+    bool isAngleSmallerThanDeg(double deg) {
+        float roll = getRoll() * RAD_TO_DEG;
+        float pitch = getPitch() * RAD_TO_DEG;
+        return roll > -deg && roll < deg && pitch > -deg && pitch < deg;
+    }
+
     /**
      * Getters /Setters
      */
