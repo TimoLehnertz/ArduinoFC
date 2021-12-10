@@ -43,16 +43,12 @@ void Comunicator::handleLED() {
   if(millis() - (1000 / ledFreq) > lastLED) {
     pixels->clear();
     if(fc->isArmed()) {
-      float roll = ins->getRoll() * RAD_TO_DEG;
-      float pitch = ins->getPitch() * RAD_TO_DEG;
-      int maxAngle = 3;
-      if(roll > -maxAngle && roll < maxAngle && pitch > -maxAngle && pitch < maxAngle) {
-        pixels->fill(pixels->Color(0, 10, 0), 0, 10);
-        // pixels->fill(pixels->Color(0, 10, 0), 4, 1);
-      } else {
-        pixels->fill(pixels->Color(10, 0, 0), 0, 10);
-        // pixels->fill(pixels->Color(10, 0, 0), 4, 1);
-      }
+      double angle = min(ins->getMaxAngleDeg(), 5);
+      double maxA = 5;
+      double brightness = 100;
+      double prog = (angle / maxA);
+      uint32_t color = pixels->Color(prog * brightness, (1 - prog) * brightness * 2, 0);
+      pixels->fill(color, 0, 10);
     } else {
       drawLedIdle();
     }
@@ -63,11 +59,11 @@ void Comunicator::handleLED() {
 
 void Comunicator::drawLedIdle() {
   uint32_t color;
-  int c = (int) (sin(millis() / 500.0f) * 50);
+  int c = (int) (sin(millis() / 500.0f) * 70);
   if(c > 0) {
     color = pixels->Color(c, 0 ,0);
   } else {
-    color = pixels->Color(0, 0 ,-c);
+    color = pixels->Color(0, -c / 2 ,-c);
   }
   pixels->fill(color, 0, 10);
 }
@@ -103,10 +99,10 @@ void Comunicator::postTelemetry() {
   }
 
   if(useQuatTelem) {
-    postSensorData("QUAT", "W", ins->getQuaternionRotation().w);
-    postSensorData("QUAT", "X", ins->getQuaternionRotation().x);
-    postSensorData("QUAT", "Y", ins->getQuaternionRotation().y);
-    postSensorData("QUAT", "Z", ins->getQuaternionRotation().z);
+    postSensorData("Q", "W", ins->getQuaternionRotation().w);
+    postSensorData("Q", "X", ins->getQuaternionRotation().x);
+    postSensorData("Q", "Y", ins->getQuaternionRotation().y);
+    postSensorData("Q", "Z", ins->getQuaternionRotation().z);
   }
 
   if(useGyroTelem) {
@@ -128,7 +124,7 @@ void Comunicator::postTelemetry() {
   }
 
   if(useBaroTelem) {
-    postSensorData("BARO", "Alt", sensors->baro.altitude);
+    postSensorData("BARO", "Alt", ins->complementaryFilter.baroAltitude);
     // postSensorData("BARO(f)", "Alt", ins->getLastFilteredBaroAltitude());
     postSensorData("BARO(speed m/s)", "Alt", ins->complementaryFilter.baroAltSpeed);
   }
@@ -180,24 +176,29 @@ void Comunicator::postTelemetry() {
     postSensorDataInt("RC", "CH12", fc->chanelsRaw.chanels[11]);
   }
   if(useFCTelem) {
-    postSensorData("RateAdj", "Roll", fc->rollRateAdjust);
-    postSensorData("RateAdj", "Pitch", fc->pitchRateAdjust);
-    postSensorData("RateAdj", "Yaw", fc->yawRateAdjust);
-    // postSensorData("Rate PID Roll", fc->rateRollPID);
-    // postSensorData("Rate PID Pitch", fc->ratePitchPID);
-    // postSensorData("Rate PID Yaw", fc->rateYawPID);
+    // postSensorData("RateAdj", "Roll", fc->rollRateAdjust);
+    // postSensorData("RateAdj", "Pitch", fc->pitchRateAdjust);
+    // postSensorData("RateAdj", "Yaw", fc->yawRateAdjust);
+    // // postSensorData("Rate PID Roll", fc->rateRollPID);
+    // // postSensorData("Rate PID Pitch", fc->ratePitchPID);
+    // // postSensorData("Rate PID Yaw", fc->rateYawPID);
     // postSensorData("Level PID Roll", fc->levelRollPID);
-    // postSensorData("Level PID Pitch", fc->levelPitchPID);
-    postSensorData("Altitude PID", fc->altitudePID);
-    postSensorData("Vel PIDx", fc->velPIDx);
-    postSensorData("Vel PIDy", fc->velPIDy);
-    postSensorData("Anti Gravity", "boost", fc->iBoost);
+    // // postSensorData("Level PID Pitch", fc->levelPitchPID);
+    // postSensorData("Altitude PID", fc->altitudePID);
+    // postSensorData("Vel PIDx", fc->velPIDx);
+    // postSensorData("Vel PIDy", fc->velPIDy);
+    // postSensorData("Anti Gravity", "boost", fc->iBoost);
     postSensorDataInt("Flight mode", "Mode", fc->flightMode);
+    postSensorData("Alti PID", fc->altitudePID);
   }
   if(useBatTelem) {
     postSensorData("vBat", "Voltage", sensors->bat.vBat);
     postSensorData("vCell", "Voltage", sensors->bat.vCell);
     postSensorDataInt("Cell count", "count", sensors->bat.cellCount);
+  }
+  if(useUltrasonicTelem) {
+    postSensorData("Ultrasonic", "distance", sensors->ultrasonic.distance);
+    postSensorData("Ultrasonic", "speed(ms)", sensors->ultrasonic.speed);
   }
 }
 
@@ -210,7 +211,7 @@ void Comunicator::end() {
 }
 
 void Comunicator::postSensorDataInt(const char* sensorName, const char* subType, uint64_t value) {
-  Serial.print("FC_POST_SENSOR");
+  Serial.print("FC_S");
   Serial.print(' ');
   Serial.print(sensorName);
   Serial.print(';');
@@ -218,7 +219,7 @@ void Comunicator::postSensorDataInt(const char* sensorName, const char* subType,
   Serial.print(';');
   Serial.println(value, 10);
 
-  Serial2.print("FC_POST_SENSOR");
+  Serial2.print("FC_S");
   Serial2.print(' ');
   Serial2.print(sensorName);
   Serial2.print(';');
@@ -228,7 +229,7 @@ void Comunicator::postSensorDataInt(const char* sensorName, const char* subType,
 }
 
 void Comunicator::postSensorDataDouble(const char* sensorName, const char* subType, double value) {
-  Serial.print("FC_POST_SENSOR");
+  Serial.print("FC_S");
   Serial.print(' ');
   Serial.print(sensorName);
   Serial.print(';');
@@ -236,7 +237,7 @@ void Comunicator::postSensorDataDouble(const char* sensorName, const char* subTy
   Serial.print(';');
   Serial.println(value, 10);
 
-  Serial2.print("FC_POST_SENSOR");
+  Serial2.print("FC_S");
   Serial2.print(' ');
   Serial2.print(sensorName);
   Serial2.print(';');
@@ -246,21 +247,21 @@ void Comunicator::postSensorDataDouble(const char* sensorName, const char* subTy
 }
 
 void Comunicator::postSensorData(const char* sensorName, const char* subType, float value) {
-  Serial.print("FC_POST_SENSOR");
+  Serial.print("FC_S");
   Serial.print(' ');
   Serial.print(sensorName);
   Serial.print(';');
   Serial.print(subType);
   Serial.print(';');
-  Serial.println(value, 10);
+  Serial.println(value, 5);
 
-  Serial2.print("FC_POST_SENSOR");
+  Serial2.print("FC_S");
   Serial2.print(' ');
   Serial2.print(sensorName);
   Serial2.print(';');
   Serial2.print(subType);
   Serial2.print(';');
-  Serial2.println(value, 10);
+  Serial2.println(value, 5);
 }
 
 void Comunicator::postSensorData(const char* sensorName, PID pid) {
@@ -306,6 +307,9 @@ void Comunicator::processSerialLine() {
     }
     if(strncmp("GYRO_OFFSET", command, 11) == 0) {
       postResponse(uid, sensors->getGyroOffset());
+    }
+    if(strncmp("GYRO_SCALE", command, 10) == 0) {
+      postResponse(uid, sensors->getGyroScale());
     }
     if(strncmp("ACC_LPF", command,7) == 0) {
       postResponse(uid, sensors->acc.lpf);
@@ -485,6 +489,30 @@ void Comunicator::processSerialLine() {
     if(strncmp("YAW_RATES", command, 9) == 0) {
       postResponse(uid, fc->yawRate.toVec3());
     }
+    if(strncmp("MAG_Z_OFFSET", command, 12) == 0) {
+      postResponse(uid, ins->getMagZOffset());
+    }
+    if(strncmp("USE_ULTRASONIC_TELEM", command, 20) == 0) {
+      postResponse(uid, useUltrasonicTelem);
+    }
+    if(strncmp("M1_PIN", command, 6) == 0) {
+      postResponse(uid, fc->getMotorPin(1));
+    }
+    if(strncmp("M2_PIN", command, 6) == 0) {
+      postResponse(uid, fc->getMotorPin(2));
+    }
+    if(strncmp("M3_PIN", command, 6) == 0) {
+      postResponse(uid, fc->getMotorPin(3));
+    }
+    if(strncmp("M4_PIN", command, 6) == 0) {
+      postResponse(uid, fc->getMotorPin(4));
+    }
+    if(strncmp("THROTTLE_MUL_4S", command,15) == 0) {
+      postResponse(uid, fc->throttleMul4S);
+    }
+    if(strncmp("THROTTLE_MUL_6S", command,15) == 0) {
+      postResponse(uid, fc->throttleMul6S);
+    }
   }
 
   // FC_DO
@@ -506,11 +534,15 @@ void Comunicator::processSerialLine() {
       Serial.print(", Scale: ");
       sensors->getAccScale().println();
     }
-    if(strncmp("GYRO_CALIB", command, 10) == 0) {
+    if(strncmp("GYRO_CALIB_OFFSET", command, 17) == 0) {
       Serial.println("Calibrating Gyroscope");
-      sensors->calibrateGyro();
+      sensors->calibrateGyroOffset();
       Serial.println("Done!");
-      // ins->calibrateGyro();
+    }
+    if(strncmp("GYRO_CALIB_SCALE", command, 16) == 0) {
+      Serial.println("Calibrating Gyroscope");
+      sensors->calibrateGyroScale();
+      Serial.println("Done!");
     }
     if(strncmp("MAG_CALIB", command, 9) == 0) {
         Serial.println("Calibrating magnetometer");
@@ -572,7 +604,12 @@ void Comunicator::processSerialLine() {
     char* value = buffer + valueStart;
     if(strncmp("GYRO_OFFSET", command, 11) == 0) {
       postResponse(uid, value);
-      sensors->setGyroCal(Vec3(value));
+      sensors->setGyroCal(Vec3(value), sensors->getGyroScale());
+      // ins->setGyroOffset(Vec3(value));
+    }
+    if(strncmp("GYRO_SCALE", command, 10) == 0) {
+      postResponse(uid, value);
+      sensors->setGyroCal(sensors->getGyroOffset(), Vec3(value));
       // ins->setGyroOffset(Vec3(value));
     }
     if(strncmp("ACC_LPF", command, 7) == 0) {
@@ -626,7 +663,6 @@ void Comunicator::processSerialLine() {
     if(strncmp("QUAT_TELEM", command, 10) == 0) {
       postResponse(uid, value);
       useQuatTelem = value[0] == 't';
-      useLocTelem = value[0] == 't';
     }
     if(strncmp("BAT_TELEM", command, 9) == 0) {
       postResponse(uid, value);
@@ -828,6 +864,38 @@ void Comunicator::processSerialLine() {
       postResponse(uid, value);
       fc->yawRate = Rates(value);
     }
+    if(strncmp("MAG_Z_OFFSET", command, 12) == 0) {
+      postResponse(uid, value);
+      ins->setMagZOffset(atof(value));
+    }
+    if(strncmp("USE_ULTRASONIC_TELEM", command, 20) == 0) {
+      postResponse(uid, value);
+      useUltrasonicTelem = value[0] == 't';
+    }
+    if(strncmp("M1_PIN", command, 6) == 0) {
+      postResponse(uid, value);
+      fc->setMotorPin(1, atoi(value));
+    }
+    if(strncmp("M2_PIN", command, 6) == 0) {
+      postResponse(uid, value);
+      fc->setMotorPin(2, atoi(value));
+    }
+    if(strncmp("M3_PIN", command, 6) == 0) {
+      postResponse(uid, value);
+      fc->setMotorPin(3, atoi(value));
+    }
+    if(strncmp("M4_PIN", command, 6) == 0) {
+      postResponse(uid, value);
+      fc->setMotorPin(4, atoi(value));
+    }
+    if(strncmp("THROTTLE_MUL_4S", command, 15) == 0) {
+      postResponse(uid, value);
+      fc->throttleMul4S = atof(value);
+    }
+    if(strncmp("THROTTLE_MUL_6S", command, 15) == 0) {
+      postResponse(uid, value);
+      fc->throttleMul6S = atof(value);
+    }
   }
 }
 
@@ -979,8 +1047,17 @@ void Comunicator::saveEEPROM() {
   Storage::write(Vec3Values::accOffset,  sensors->getAccOffset());
   Storage::write(Vec3Values::accScale,  sensors->getAccScale());
   Storage::write(Vec3Values::gyroOffset, sensors->getGyroOffset());
+  Storage::write(Vec3Values::gyroScale, sensors->getGyroScale());
   Storage::write(Vec3Values::magOffset, sensors->getMagOffset());
   Storage::write(Vec3Values::magScale, sensors->getMagScale());
+
+  Storage::write(FloatValues::m1Pin, fc->getMotorPin(1));
+  Storage::write(FloatValues::m2Pin, fc->getMotorPin(2));
+  Storage::write(FloatValues::m3Pin, fc->getMotorPin(3));
+  Storage::write(FloatValues::m4Pin, fc->getMotorPin(4));
+
+  Storage::write(FloatValues::throttleMul4S, fc->throttleMul4S);
+  Storage::write(FloatValues::throttleMul6S, fc->throttleMul6S);
 
   Storage::write(FloatValues::accInsInf, ins->complementaryFilter.accInfluence);
   Storage::write(FloatValues::magInsInf, ins->complementaryFilter.magInfluence);
@@ -988,6 +1065,7 @@ void Comunicator::saveEEPROM() {
   Storage::write(FloatValues::gyroLPF, sensors->gyro.lpf);
 
   Storage::write(FloatValues::insSensorFusion, ins->getFusionAlgorythm());
+  Storage::write(FloatValues::magZOffset, ins->getMagZOffset());
 
   Storage::write(FloatValues::batLpf, sensors->batLpf);
   Storage::write(FloatValues::batMul, sensors->vBatMul);
@@ -1037,7 +1115,7 @@ void Comunicator::readEEPROM() {
 
   // Sensor Interface calibration
   sensors->setAccCal (Storage::read(Vec3Values::accOffset), Storage::read(Vec3Values::accScale));
-  sensors->setGyroCal(Storage::read(Vec3Values::gyroOffset));
+  sensors->setGyroCal(Storage::read(Vec3Values::gyroOffset), Storage::read(Vec3Values::gyroScale));
   sensors->setMagCal (Storage::read(Vec3Values::magOffset), Storage::read(Vec3Values::magScale));
 
   ins->complementaryFilter.accInfluence = Storage::read(FloatValues::accInsInf);
@@ -1046,6 +1124,7 @@ void Comunicator::readEEPROM() {
   sensors->gyro.lpf = Storage::read(FloatValues::gyroLPF);
 
   ins->setFusionAlgorythm(SensorFusion::FusionAlgorythm(Storage::read(FloatValues::insSensorFusion)));
+  ins->setMagZOffset(Storage::read(FloatValues::magZOffset));
 
   sensors->batLpf = Storage::read(FloatValues::batLpf);
   sensors->vBatMul = Storage::read(FloatValues::batMul);
@@ -1080,6 +1159,14 @@ void Comunicator::readEEPROM() {
 
   fc->velPIDx         = Storage::read(PidValues::velPid);
   fc->velPIDy         = Storage::read(PidValues::velPid);
+
+  fc->setMotorPin(1, (int) Storage::read(FloatValues::m1Pin));
+  fc->setMotorPin(2, (int) Storage::read(FloatValues::m2Pin));
+  fc->setMotorPin(3, (int) Storage::read(FloatValues::m3Pin));
+  fc->setMotorPin(4, (int) Storage::read(FloatValues::m4Pin));
+
+  fc->throttleMul4S =  Storage::read(FloatValues::throttleMul4S);
+  fc->throttleMul6S =  Storage::read(FloatValues::throttleMul6S);
 
   loopFreqRate = Storage::read(FloatValues::loopFreqRate);
   loopFreqLevel = Storage::read(FloatValues::loopFreqLevel);

@@ -55,7 +55,11 @@ float PID::compute(float measurement, float setpoint, float gyro) {
     float p = this->p * pMul;
     float i = this->i * iMul;
     float d = this->d * dMul;
-    
+
+    if(t > 0.01) { // preven large i jumps on Flight mode change
+        i = 0;
+    }
+
     /**
      *  Error
      */

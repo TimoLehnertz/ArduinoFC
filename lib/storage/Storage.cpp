@@ -135,6 +135,11 @@ void Storage::writeDefaults() {
     write(BoolValues::useAntiGravity, true);
     write(BoolValues::useVCell, true);
 
+    write(FloatValues::m1Pin, 4);
+    write(FloatValues::m2Pin, 3);
+    write(FloatValues::m3Pin, 5);
+    write(FloatValues::m4Pin, 2);
+
     PID rateR_PID    (RATE_PID_RP,   RATE_PID_RI,  RATE_PID_RD,  RATE_PID_RD_LPF,  RATE_PID_R_MAX);
     PID rateP_PID    (RATE_PID_PP,   RATE_PID_PI,  RATE_PID_PD,  RATE_PID_PD_LPF,  RATE_PID_P_MAX);
     PID rateY_PID    (RATE_PID_YP,   RATE_PID_YI,  RATE_PID_YD,  RATE_PID_YD_LPF,  RATE_PID_Y_MAX);
@@ -145,19 +150,22 @@ void Storage::writeDefaults() {
     PID velPid       (VEL_PID_P,         VEL_PID_I,      VEL_PID_D,      VEL_PID_D_LPF,      VEL_PID_P);
 
     write(FloatValues::insAccMaxG, 1.0);
-    write(FloatValues::accLPF, 0.1f);
+    write(FloatValues::accLPF, 0.01f);
     write(FloatValues::gyroLPF, 1.0f);
     write(FloatValues::accInsInf, 0.0002f);
-    write(FloatValues::magInsInf, 0.00f);
+    write(FloatValues::magInsInf, 1.0f);
     write(FloatValues::antiGravityMul, 1.0f);
     write(FloatValues::boostLpf, 0.005f);
     write(FloatValues::boostSpeed, 40.0f);
     write(FloatValues::batLpf, 0.001f);
-    write(FloatValues::batMul, 11.9f);
+    write(FloatValues::batMul, 12.10f);
 
     write(FloatValues::insSensorFusion, 0.0f);
 
     write(FloatValues::insSensorFusion, 0.0f);
+    write(FloatValues::magZOffset, 0.0f);
+    write(FloatValues::throttleMul4S, 1.0f);
+    write(FloatValues::throttleMul6S, 1.0f);
 
     /**
      * FC
@@ -198,8 +206,9 @@ void Storage::writeDefaults() {
     write(Vec3Values::accOffset,    Vec3(0, 0, 0));
     write(Vec3Values::accScale,     Vec3(1, 1, 1));
     write(Vec3Values::gyroOffset,   Vec3(0, 0, 0));
-    write(Vec3Values::magOffset,    Vec3(0, 0, 0));
-    write(Vec3Values::magScale,     Vec3(1, 1, 1));
+    write(Vec3Values::gyroScale,    Vec3(1.028, 1.028, 1.028));
+    write(Vec3Values::magOffset,    Vec3(-5, 715, -212.5));
+    write(Vec3Values::magScale,     Vec3(0.9743, 0.9943, 1.0331));
 
 
     write(QuaternionValues::accAngleOffset,  Quaternion());

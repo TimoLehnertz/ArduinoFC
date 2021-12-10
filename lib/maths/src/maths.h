@@ -50,6 +50,9 @@ struct Vec3 {
 
     double getValue() const;
 
+    double getAxis(int axis); // 0: x, 1: y, 2: z
+    double setAxis(int axis, double val); // 0: x, 1: y, 2: z
+
     Vec3 toRad();
     Vec3 toDeg();
     Vec3 toG();

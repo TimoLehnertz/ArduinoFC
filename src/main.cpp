@@ -49,9 +49,8 @@ void handleLoopFreq() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin (921600);
   Serial2.begin(115200);
-  // delay(8000);
   Storage::begin();
   com.begin();
   crsf.begin();
@@ -65,6 +64,9 @@ void setup() {
 }
 
 void loop() {
+  // Serial.println("test");
+  // delay(1000);
+  // return;
   uint64_t now = micros();
   com.loopStart = now;
   crsf.handle();

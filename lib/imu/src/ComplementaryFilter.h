@@ -13,7 +13,8 @@ public:
     float accInfluence = 0.002;
     float magInfluence = 0.002;
     double baroAltSpeed = 0;
-    double magOffsetDeg = 180.0;
+    double magZOffsetDeg = 0.0;
+    double baroAltitude = 0;
 
     void begin() {
         // nothing to do
@@ -62,6 +63,14 @@ public:
         // DO nothing
     }
 
+    void setMagZOffset(double deg) {
+        magZOffsetDeg = deg;
+    }
+
+    double getMagZOffset() {
+        return magZOffsetDeg;
+    }
+
 private:
     uint64_t lastAcc = 0;
     uint64_t lastAccProcessed = 0;
@@ -77,7 +86,6 @@ private:
     Vec3 lastMagF = Vec3();
     uint64_t magCounter = 0;
 
-    double baroAltitude = 0;
     double baroOffset = 0;
     double lastRawBaroAltitude = 0;
     double lastBaroAlt = 0;
@@ -159,9 +167,6 @@ private:
     }
 
     void processMag(const Vec3 &mag) {
-        EulerRotation magOffset = EulerRotation(0, 0, magOffsetDeg * DEG_TO_RAD);
-        Vec3 magRotated = mag.clone();
-        magOffset.rotate(magRotated);
         float roll = rot.toEulerZYX().x * RAD_TO_DEG;
         float pitch = rot.toEulerZYX().y * RAD_TO_DEG;
 
@@ -172,7 +177,18 @@ private:
 
         double limDeg = 5;
         if(pitch < limDeg && pitch > -limDeg && roll < limDeg && roll > -limDeg) {
-            Quaternion magRot(EulerRotation(rot.toEulerZYX().x, -rot.toEulerZYX().y, atan2(magRotated.y, magRotated.x)));
+            double magRotRad = atan2(mag.y, mag.x);
+            // if(millis() % 10 == 0) {
+            //     Serial.println(magRotRad);
+            // }
+            magRotRad += magZOffsetDeg * DEG_TO_RAD;
+            // if(magRotRad > PI) {
+            //     magRotRad = -PI + magRotRad;
+            // }
+            // if(magRotRad < -PI) {
+            //     magRotRad = PI + magRotRad;
+            // }
+            Quaternion magRot(EulerRotation(rot.toEulerZYX().x, -rot.toEulerZYX().y, magRotRad));
             rot = Quaternion::lerp(magRot, rot, magCounter == 10 ? 0.0 : 1 - magInfluence);
             magCounter++;
         }
@@ -184,14 +200,16 @@ private:
         if(baroOffset == 0.0) {
             baroOffset = altitude;
         }
+        double lpf = 0.5;
         const double altitudeFiltered = altitude - baroOffset;
-        baroAltitude = altitudeFiltered;
+        baroAltitude = lowPassFilter(baroAltitude, altitudeFiltered, lpf);
+        // baroAltitude = altitudeFiltered;
 
         if(lastBaroAlt == 0.0) {
             lastBaroAlt = altitudeFiltered;
         }
         double tmpBaroSpd = (baroAltitude - lastBaroAlt) / elapsedSeconds;
-        baroAltSpeed = lowPassFilter(baroAltSpeed, tmpBaroSpd, 0.0000001);
+        baroAltSpeed = lowPassFilter(baroAltSpeed, tmpBaroSpd, 0.00001);
         lastBaroAlt = baroAltitude;
     }
 

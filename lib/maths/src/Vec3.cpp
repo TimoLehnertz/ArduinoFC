@@ -108,6 +108,23 @@ double Vec3::getValue() const {
     return x + y + z;
 }
 
+double Vec3::getAxis(int axis) {
+    switch(axis) {
+        case 0: return x;
+        case 1: return y;
+        case 2: return z;
+        default: return 0;
+    }
+}
+
+double Vec3::setAxis(int axis, double val) {
+    switch(axis) {
+        case 0: x = val;
+        case 1: y = val;
+        case 2: z = val;
+    }
+}
+
 Vec3 Vec3::toRad() {
     x = (x * 71) / 4068;
     y = (y * 71) / 4068;
@@ -116,9 +133,12 @@ Vec3 Vec3::toRad() {
 }
 
 Vec3 Vec3::toDeg() {
-    x = (x * 4068) / 71;
-    y = (y * 4068) / 71;
-    z = (z * 4068) / 71;
+    // x = (x * 4068) / 71;
+    // y = (y * 4068) / 71;
+    // z = (z * 4068) / 71;
+    x *= RAD_TO_DEG;
+    y *= RAD_TO_DEG;
+    z *= RAD_TO_DEG;
     return *this;
 }
 

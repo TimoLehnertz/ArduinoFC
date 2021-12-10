@@ -174,6 +174,15 @@ public:
         return sensors->baro.error != Error::CRITICAL_ERROR;
     }
 
+    void setMagZOffset(double deg) {
+        magZOffsetDeg = deg;
+    }
+
+    double getMagZOffset() {
+        return magZOffsetDeg;
+    }
+
+
 private:
     uint64_t lastUpdate = 0;
 
@@ -187,6 +196,7 @@ private:
     float q1 = 0.0f;
     float q2 = 0.0f;
     float q3 = 0.0f;
+    double magZOffsetDeg = 0.0;
 
     float invSqrt(float x) {
         //Fast inverse sqrt for madgwick filter
@@ -201,9 +211,10 @@ private:
         return y;
         */
         //alternate form:
-        unsigned int i = 0x5F1F1412 - (*(unsigned int*)&x >> 1);
-        float tmp = *(float*)&i;
-        float y = tmp * (1.69000231f - 0.714158168f * x * tmp * tmp);
-        return y;
+        // unsigned int i = 0x5F1F1412 - (*(unsigned int*)&x >> 1);
+        // float tmp = *(float*)&i;
+        // float y = tmp * (1.69000231f - 0.714158168f * x * tmp * tmp);
+        // return y;
+        return 0;
     }
 };

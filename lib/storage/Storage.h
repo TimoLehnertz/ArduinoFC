@@ -4,7 +4,7 @@
 #include <pid.h>
 #include <fc.h>
 
-#define STORAGE_VERSION 31415 // 3.14159265359
+#define STORAGE_VERSION 314 // 3.14159265359
 
 #define STORAGE_SIZE_BOOL       (sizeof(bool)   * 1)
 #define STORAGE_SIZE_FLOAT      (sizeof(float)  * 1)
@@ -60,6 +60,16 @@ enum FloatValues {
     launchIBoostLevel,
     launchIBoostAltitude,
 
+    magZOffset,
+
+    m1Pin,
+    m2Pin,
+    m3Pin,
+    m4Pin,
+
+    throttleMul4S,
+    throttleMul6S,
+
     FloatValuesCount
 };
 
@@ -67,6 +77,7 @@ enum Vec3Values {
     accOffset,
     accScale,
     gyroOffset,
+    gyroScale,
     magOffset,
     magScale,
 

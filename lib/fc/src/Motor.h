@@ -38,11 +38,12 @@ public:
     void setMaxThrottle(float max) { maxThrottle = max; };
 
     int getPin() { return pin; }
+    virtual void setPin(int pin) = 0;
 
 protected:
     bool armed;
 
-    float minThrottle = 0.07; //mapping values
+    float minThrottle = 0.025; //mapping values
     float maxThrottle = 1;
 
     double map(double x, double in_min, double in_max, double out_min, double out_max) {

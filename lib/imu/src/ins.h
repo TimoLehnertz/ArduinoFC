@@ -27,6 +27,12 @@ public:
         return roll > -deg && roll < deg && pitch > -deg && pitch < deg;
     }
 
+    double getMaxAngleDeg() {
+        double roll = getRoll() * RAD_TO_DEG;
+        double pitch = getPitch() * RAD_TO_DEG;
+        return max(abs(roll), abs(pitch));
+    }
+
     /**
      * Getters /Setters
      */
@@ -39,6 +45,8 @@ public:
     double getYaw()         {return getEulerRotationZYX().getYaw();}
     double getYawRate()     {return sensors->gyro.z;}
     float getGForce()       {return sensors->acc.getVec3().getLength();}
+    double getMagZOffset()  {return getSensorFusion()->getMagZOffset();}
+    void setMagZOffset(double deg)  {return getSensorFusion()->setMagZOffset(deg);}
     Vec3 getLocation()      {return getSensorFusion()->getLocation();}
     Vec3 getVelocity()      {return getSensorFusion()->getVelocity();}
     Vec3 getLocalVelocity()      {return getSensorFusion()->getLocalVelocity();}

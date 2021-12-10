@@ -103,10 +103,11 @@ private:
 	bool useRCTelem = false;
 	bool useFCTelem = false;
 	bool useBatTelem = false;
+	bool useUltrasonicTelem = false;
 
     char buffer[256];
     byte bufferCount = 0;
-    int telemetryFreq = 20; //Hz
+    int telemetryFreq = 30; //Hz
     uint64_t telemUs = 1000000 / telemetryFreq;
     uint64_t lastTelem = 0;
 

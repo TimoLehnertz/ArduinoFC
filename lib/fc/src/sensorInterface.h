@@ -85,7 +85,6 @@ struct Magnetometer : public Vec3Sensor {
     Magnetometer() : Vec3Sensor(FlightMode::gpsHold) {}
 };
 
-
 struct Barometer : public Sensor{
     float altitude, lastAltitude;     //Meters
     float preassure;    //atmospheres
@@ -157,6 +156,24 @@ struct GPS : public Sensor{
     }
 };
 
+
+struct Ultrasonic : public Sensor {
+    double distance = 0.0; //m
+    double speed = 0.0; //m/s
+    bool outOfRange  = false;
+    bool connected = false;
+
+    Ultrasonic() : Sensor(FlightMode::dreaming) {}
+
+    void update(double distance, double speed, bool outOfRange) {
+        this->distance = distance;
+        this->speed = speed;
+        this->outOfRange = outOfRange;
+    }
+
+    void checkError() {}
+};
+
 struct Battery : public Sensor {
     float vBat; // Volts
     float vCell; // Volts
@@ -200,9 +217,11 @@ public:
 
     GPS gps;
 
+    Ultrasonic ultrasonic;
+
     Battery bat;
 
-    float batLpf = 0.001;
+    float batLpf = 0.0001;
     float vBatMul = 11.8;
 
     float accLpf = 1.0f;
@@ -221,16 +240,18 @@ public:
     virtual void handle() = 0;
 
     virtual void setAccCal (Vec3 gVecOffset, Vec3 scale)  = 0;
-    virtual void setGyroCal(Vec3 degVecOffset) = 0;
+    virtual void setGyroCal(Vec3 degVecOffset, Vec3 gyroScale) = 0;
     virtual void setMagCal (Vec3 offset, Vec3 scale)  = 0;
 
     virtual void calibrateAcc() = 0;
-    virtual void calibrateGyro() = 0;
+    virtual void calibrateGyroOffset() = 0;
+    virtual void calibrateGyroScale() = 0;
     virtual void calibrateMag() = 0;
 
     virtual Vec3 getAccOffset() = 0;
     virtual Vec3 getAccScale() = 0;
     virtual Vec3 getGyroOffset() = 0;
+    virtual Vec3 getGyroScale() = 0;
     virtual Vec3 getMagOffset() = 0;
     virtual Vec3 getMagScale() = 0;
 

@@ -27,17 +27,41 @@
  * GND MPU9250                  : GND
  * SCL MPU9250                  : Pin 13
  * SDA MPU9250                  : Pin 11
- * SDO/SAO MPU9250              : Pin 12
+ * SDO/SAO/ADD/SDD MPU9250      : Pin 12
  * NCS MPU9250                  : Pin 10
  * 
- * SCL SPI Same as MPU
+ * Barometer BMP280 Same as MPU
  * SDA Chip select              : Pin 9
  * 
- * RX GPS                       : Pin 20
- * TX GPS                       : Pin 21
+ * MAG VCC                      : 5V
+ * MAG GND                      : GND
+ * MAG SDA                      : Pin 18
+ * MAG SCL                      : Pin 19
+ * 
+ * hc-sr04 GND                  : GND
+ * hc-sr04 VCC                  : 5V
+ * hc-sr04 Trig                 : Pin 6
+ * hc-sr04 Echo                 : Pin 21
  * 
  * Bat (voltage divider)        : Pin 22
  **/
+
+#define ULTRA_SONIC_TRIG 6
+#define ULTRA_SONIC_ECHO 21
+
+volatile uint64_t ultrasonicStart = 0;
+volatile uint64_t ultrasonicDuration = 0;
+volatile bool ultrasonicReceived = false;
+
+void ultrasonicFallingEdge() {
+    ultrasonicDuration = micros() - ultrasonicStart;
+    ultrasonicReceived = true;
+}
+
+void initUltraSonicInterrupt() {
+    attachInterrupt(ULTRA_SONIC_ECHO, ultrasonicFallingEdge, FALLING);
+}
+
 class MPU9250Sensor : public SensorInterface {
 public:
 
@@ -52,6 +76,9 @@ public:
 
     float magHz = 200;
     uint32_t lastMag = 0;
+
+    double ultraSonicHz = 100;
+    uint64_t lastUltraSonic = 0;
 
     MPU9250 mpu9250;
     Adafruit_BMP280 bmp;
@@ -74,6 +101,15 @@ public:
         initBattery();
         
         initMag();
+
+        initUltraSonic();
+    }
+
+    void initUltraSonic() {
+        pinMode(ULTRA_SONIC_TRIG, OUTPUT);
+        pinMode(ULTRA_SONIC_ECHO, INPUT);
+        digitalWrite(ULTRA_SONIC_TRIG, LOW);
+        initUltraSonicInterrupt();
     }
 
     void initMag() {
@@ -150,11 +186,12 @@ public:
         accOffset = gVecOffset.clone();
     }
 
-    void setGyroCal(Vec3 degVecOffset) {
+    void setGyroCal(Vec3 degVecOffset, Vec3 gyroScale) {
         gyroOffset = degVecOffset.clone();
+        this->gyroScale = gyroScale.clone();
     }
 
-     void setMagCal(Vec3 offset, Vec3 scale) {
+    void setMagCal(Vec3 offset, Vec3 scale) {
         magOffset = offset;
         magScale = scale;
     }
@@ -171,6 +208,10 @@ public:
         return gyroOffset;
     }
 
+    Vec3 getGyroScale() {
+        return gyroScale;
+    }
+
     Vec3 getMagOffset() {
         return magOffset;
     }
@@ -183,9 +224,15 @@ public:
         return Vec3(mpu9250.getAccelY_G(), -mpu9250.getAccelX_G(), -mpu9250.getAccelZ_G());
     }
 
+    bool magError = false;
+
     Vec3 getMagRaw() {
+        if(magError) return Vec3();
         int x,y,z;
-        qmc.read(&x, &y, &z);
+        bool error = qmc.read(&x, &y, &z);
+        if(error) {
+            magError = true;
+        }
         return Vec3(x, y, z);
     }
 
@@ -219,19 +266,50 @@ public:
         acc.lastPollTime = micros() - timeTmp;
         timeTmp = micros();
         Vec3 gyroRaw = getGyrocRaw();
-        gyro.update(gyroRaw.toDeg() - gyroOffset);
+        gyro.update((gyroRaw.toDeg() - gyroOffset) * gyroScale);
         gyro.lastPollTime = micros() - timeTmp;
         timeTmp = micros();
+        /**
+         * Mag
+         */
         if(magHz > 0 && millis() > lastMag + (1000.0f / magHz)) {
             mag.update ((getMagRaw() + magOffset) * magScale);
             mag.lastPollTime = micros() - timeTmp;
             lastMag = millis();
         }
-        timeTmp = micros();
+        // timeTmp = micros();
 
-        // /**
-        //  * GPS
-        //  */
+        /**
+         * Ultra sonic
+         */
+        if(ultraSonicHz > 0 && micros() > lastUltraSonic + (1000000.0f / ultraSonicHz)) {
+            /**
+             * Save last
+             */
+            noInterrupts();
+            double distanceM = ultrasonicDuration * 0.00034 / 2;
+            bool received = ultrasonicReceived;
+            ultrasonicReceived = false;
+            interrupts();
+
+            double deltaT = (micros() - lastUltraSonic) / 1000000.0;
+            double lpf = 0.1;
+            double distanceFiltered = distanceM * lpf + (1 - lpf) * ultrasonic.distance;
+            double speed = (distanceFiltered - ultrasonic.distance) / deltaT;
+
+            ultrasonic.update(distanceFiltered, speed, distanceM > 3);
+            ultrasonic.connected = received;
+            digitalWrite(ULTRA_SONIC_TRIG, HIGH);
+            delayMicroseconds(10);
+            digitalWrite(ULTRA_SONIC_TRIG, LOW);
+            ultrasonicStart = micros();
+            // Serial.println(ultrasonic.distance);
+            lastUltraSonic = micros();
+        }
+
+        /**
+         * GPS
+         */
         while (Serial1.available()) {
             char c = Serial1.read();
             // Serial.write(c);
@@ -321,7 +399,7 @@ public:
     /**
      * Blocks for 2 seconds
      */
-    void calibrateGyro() {
+    void calibrateGyroOffset() {
         Vec3 avg = Vec3();
         const int sampleCount = 100;
         for (size_t i = 0; i < sampleCount; i++) {
@@ -336,13 +414,63 @@ public:
         gyroOffset = (avg / (double) sampleCount);
     }
 
+    double getGyroSum(uint32_t time, int axis) {
+        uint32_t start = millis();
+        boolean printed = false;
+        double sum = 0;
+        uint64_t last = micros();
+        while(millis() - start < time) {
+            if(!printed && ((millis() - start) % 1000 == 0)) {
+                Serial.println((time - (millis() - start)) / 1000);
+                printed = true;
+            }
+            if(((millis() - start) % 1000 != 0)) {
+                printed = false;
+            }
+            mpu9250.readSensor();
+            Vec3 gyro = getGyrocRaw().toDeg() - gyroOffset;
+            uint64_t now = micros();
+            double t = (now - last) / 1000000.0;
+            sum += gyro.getAxis(axis) * t;
+            last = now;
+            delayMicroseconds(200);
+        }
+        return sum;
+    }
+
+    void calibrateGyroScale() {
+        delay(1000);
+        Serial.println("Calibrating Gyro scale");
+        Serial.println("Lay drone on a flat surface");
+        Serial.println("3");
+        delay(1000);
+        Serial.println("2");
+        delay(1000);
+        Serial.println("1");
+        delay(1000);
+        for (size_t axis = 0; axis < 3; axis++) {
+            switch(axis) {
+                case 0: {Serial.println("Roll 360deg and lay back"); break;}
+                case 1: {Serial.println("Pitch 360deg and lay back"); break;}
+                case 2: {Serial.println("Yaw 360deg and lay back"); break;}
+            }
+            double sum = getGyroSum(7000, axis);
+            Serial.print("sum: ");
+            Serial.println(sum);
+            gyroScale.setAxis(axis, 360.0 / abs(sum));
+            Serial.print("Axis done! Scale: ");
+            Serial.println(gyroScale.getAxis(axis));
+            delay(2000);
+        }
+    }
+
     /**
      * Blocks for 20 seconds
      */
     void calibrateMag() {
         Vec3 min = Vec3();
         Vec3 max = Vec3();
-        double seconds = 20;
+        double seconds = 35;
         size_t sampleCount = seconds / (1.0 / magHz);
         uint32_t lastPrint = 0;
         for (size_t i = 0; i < sampleCount; i++) {
@@ -360,7 +488,7 @@ public:
                 lastPrint = millis();
             }
         }
-        magOffset = (max + min) / -2;
+        magOffset = (max + min) * (-0.5);
         min += magOffset;
         max += magOffset;
         Vec3 targetRadius = (max.x + max.y + max.z) / 3.0;
@@ -369,12 +497,15 @@ public:
 
     void calibrateBat(float actualVoltage) {
         vBatMul = actualVoltage / vMeasured;
+        Serial.print("Calibrated vBat. Multiplier: ");
+        Serial.println(vBatMul);
     }
 
 private:
 
-    Vec3 gyroOffset = Vec3();//in degrees
     Vec3 accOffset = Vec3();//in G
+    Vec3 gyroOffset = Vec3();//in degrees
+    Vec3 gyroScale = Vec3(1,1,1);
 
     Vec3 magOffset = Vec3();
     Vec3 magScale = Vec3();

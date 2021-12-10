@@ -74,6 +74,9 @@ public:
     virtual bool isVelocityValid() = 0;
     virtual bool isHeightValid() = 0;
 
+    virtual void setMagZOffset(double deg) = 0;
+    virtual double getMagZOffset() = 0;
+
 protected:
     SensorInterface* sensors;
     Quaternion rot;

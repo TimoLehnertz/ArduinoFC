@@ -21,6 +21,7 @@ class OneShotMotor;
 void timerFunc(OneShotTimer* timer);
 void updateOneShot(int chanel, float speed);
 int registerOneShotMotor(OneShotMotor* m);
+void changeOneShotPin(int chanel, int pin);
 
 class OneShotMotor : public Motor {
 public:
@@ -28,6 +29,7 @@ public:
 
     void begin() {
         oneShotChanel = registerOneShotMotor(this);
+        // oneShotChanel = -1;
         pinMode(pin, OUTPUT);
     }
 
@@ -64,6 +66,17 @@ public:
     // volatile float speed = 0.0f;
     float lastSpeed = 0.0f;
 
+    void setPin(int pin) {
+        if(pin < 2 || pin > 5) {
+            pin = 1000;
+            return;
+        }
+        digitalWrite(this->pin, LOW);
+        pinMode(pin, OUTPUT);
+        changeOneShotPin(oneShotChanel, pin);
+        this->pin = pin;
+    }
+
 private:
     Servo servo;
     bool arming = false;
@@ -80,7 +93,7 @@ OneShotTimer* timers[4];
 size_t timerCount = 0;
 
 void beginOneShot() {
-    pinMode(21, OUTPUT);
+    // pinMode(21, OUTPUT);
 }
 
 void timerFunc1() {
@@ -139,7 +152,15 @@ int registerOneShotMotor(OneShotMotor* m) {
 }
 
 void updateOneShot(int chanel, float speed) {
+    if(chanel < 0) return;
     noInterrupts();
     timers[chanel]->speed = speed;
+    interrupts();
+}
+
+void changeOneShotPin(int chanel, int pin) {
+    if(chanel < 0) return;
+    noInterrupts();
+    timers[chanel]->pin = pin;
     interrupts();
 }
