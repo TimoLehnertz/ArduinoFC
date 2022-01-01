@@ -1,14 +1,21 @@
+/**
+ * @file crossfire.h
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #ifndef CRSF
 #define CRSF
 #include <Arduino.h>
 
-
 // #define CRSF_DEBUG //prints every received frame
 
 typedef uint32_t timeUs_t;
-// typedef uint64_t timeUs_t;
 
-// time difference, 32 bits always sufficient
 typedef int32_t timeDelta_t;
 
 #define CRSF_ADDRESS_FLIGHT_CONTROLLER 0xC8
@@ -52,7 +59,7 @@ typedef int32_t timeDelta_t;
 #define CRSF_FRAME_ATTITUDE_PAYLOAD_SIZE 6
 #define CRSF_FRAME_GPS_PAYLOAD_SIZE 15
 
-#define CRSF_FAILSAFE_TIMEOUT_US 100000 //100ms
+#define CRSF_FAILSAFE_TIMEOUT_US 1000000 //1sek
 
 static inline timeDelta_t cmpTimeUs(timeUs_t a, timeUs_t b) { return (timeDelta_t)(a - b); }
 
@@ -210,7 +217,7 @@ private:
     int32_t gpsLat = 508074330;         // Latitude ( degree / 10`000`000 )
     int32_t gpsLng = 68317330;          // Longitude (degree / 10`000`000 )
     uint16_t groundSpeed = 0;           // Groundspeed ( km/h / 10 )
-    uint16_t gpsHeading = 0;            // GPS heading ( degree / 100 )
+    int16_t gpsHeading = 0;            // GPS heading ( degree / 100 )
     uint16_t altitude = 1000;           // Altitude ( meter + 1000 ­)
     uint8_t satelitesInUse = 0;         // Satellites in use ( counter )
 

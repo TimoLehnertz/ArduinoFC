@@ -1,7 +1,15 @@
+/**
+ * @file pid.cpp
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #include <Arduino.h>
 #include "pid.h"
-
-
 
 PID::PID() : p(0), i(0), d(0), dlpf(0), maxOut(0), useAuxTuning(false) {registerPID(this);}
 

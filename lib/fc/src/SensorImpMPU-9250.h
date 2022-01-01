@@ -1,4 +1,13 @@
-#pragma once
+/**
+ * @file SensorImpMPU-9250.h
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #include <Arduino.h>
 #include "sensorInterface.h"
 #include <TinyGPS++.h>
@@ -27,11 +36,11 @@
  * GND MPU9250                  : GND
  * SCL MPU9250                  : Pin 13
  * SDA MPU9250                  : Pin 11
- * SDO/SAO/ADD/SDD MPU9250      : Pin 12
+ * SDO/SAO/ADD/SDD MPU9250      : Pin 12´´´´´´´´
  * NCS MPU9250                  : Pin 10
- * 
+ *  
  * Barometer BMP280 Same as MPU
- * SDA Chip select              : Pin 9
+ * bmp Chip select              : Pin 9
  * 
  * MAG VCC                      : 5V
  * MAG GND                      : GND
@@ -71,10 +80,10 @@ public:
     float altitudeOffset = 0;
     bool firstHeightMeasured = false;
 
-    float baroHz = 50;
+    float baroHz = 1000;
     uint32_t lastBaro = 0;
 
-    float magHz = 200;
+    float magHz = 100;
     uint32_t lastMag = 0;
 
     double ultraSonicHz = 100;
@@ -125,7 +134,7 @@ public:
 
     void initGPS() {
         Serial1.begin(9600);
-        delay(200);
+        delay(2000);
         char disable_GPGSV[11] = {0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0xF0, 0x03, 0x00, 0xFD, 0x15};
         Serial1.write(disable_GPGSV, 11);
         delay(200);
@@ -144,7 +153,8 @@ public:
             bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
                   Adafruit_BMP280::SAMPLING_X1,     /* Temp. oversampling */
                   Adafruit_BMP280::SAMPLING_X1,     /* Pressure oversampling */
-                  Adafruit_BMP280::FILTER_X4,       /* Filtering. */
+                //   Adafruit_BMP280::FILTER_X4,       /* Filtering. */
+                  Adafruit_BMP280::FILTER_OFF,       /* Filtering. */
                   Adafruit_BMP280::STANDBY_MS_1);   /* Standby time. */
             baro.error = Error::NO_ERROR;
             Serial.println("Succsessfully initiated BMP280");
@@ -254,6 +264,7 @@ public:
             }
             lastBaro = millis();
             baro.lastPollTime = micros() - timeTmp;
+            // Serial.println(altitude, 5);
         }
         /**
          * MPU9250
@@ -266,8 +277,10 @@ public:
         acc.lastPollTime = micros() - timeTmp;
         timeTmp = micros();
         Vec3 gyroRaw = getGyrocRaw();
-        gyro.update((gyroRaw.toDeg() - gyroOffset) * gyroScale);
-        gyro.lastPollTime = micros() - timeTmp;
+        if(gyroRaw.x != 0) {
+            gyro.update((gyroRaw.toDeg() - gyroOffset) * gyroScale);
+            gyro.lastPollTime = micros() - timeTmp;
+        }
         timeTmp = micros();
         /**
          * Mag
@@ -277,7 +290,7 @@ public:
             mag.lastPollTime = micros() - timeTmp;
             lastMag = millis();
         }
-        // timeTmp = micros();
+        timeTmp = micros();
 
         /**
          * Ultra sonic
@@ -313,11 +326,12 @@ public:
         while (Serial1.available()) {
             char c = Serial1.read();
             // Serial.write(c);
+            gps.satelites = gpsSensor.satellites.value();
             if (gpsSensor.encode(c)) {
                 timeTmp = micros();
                 gps.locationValid = gpsSensor.location.isValid();
                 if(gps.locationValid) {
-                    gps.lat = gpsSensor.location.lat();
+                    gps.lat = gpsSensor.location.lat(); 
                     gps.lng = gpsSensor.location.lng();
                 }
                 gps.dateValid = gpsSensor.date.isValid();
@@ -333,7 +347,6 @@ public:
                     gps.second = gpsSensor.time.second();
                     gps.centisecond = gpsSensor.time.centisecond();
                 }
-                gps.satelites = gpsSensor.satellites.value();
                 gps.courseValid = gpsSensor.course.isValid();
                 if(gps.courseValid) {
                     gps.course = gpsSensor.course.deg();
@@ -346,7 +359,7 @@ public:
                 if(gps.altitudeValid) {
                     gps.altitude = gpsSensor.altitude.value();
                 }
-                if(micros() - gps.lastChange > 180000) {
+                if(micros() - gps.lastChange > 150000) {
                     gps.lastChange = micros();
                 }
                 gps.lastPollTime = micros() - timeTmp;
@@ -363,6 +376,11 @@ public:
         bat.vBat = bat.vBat * (1 - batLpf) + batLpf * vMeasured * vBatMul; // lpf
 
         bat.cellCount = max(bat.cellCount, (int) ceil((bat.vBat - 0.2) / 4.2));
+        if(bat.cellCount == 5) bat.cellCount = 6; // skip 5s as unusual
+
+        // bat.cellCount = 4;
+
+        // Serial.println(bat.vBat);
 
         bat.vCell = bat.vBat / bat.cellCount;
         bat.lastChange = micros();
@@ -470,7 +488,7 @@ public:
     void calibrateMag() {
         Vec3 min = Vec3();
         Vec3 max = Vec3();
-        double seconds = 35;
+        double seconds = 25;
         size_t sampleCount = seconds / (1.0 / magHz);
         uint32_t lastPrint = 0;
         for (size_t i = 0; i < sampleCount; i++) {
@@ -479,11 +497,11 @@ public:
             max = Vec3::max(max, magRaw);
             delay(1000.0f / magHz);
             if(millis() - lastPrint > 30) {
-                Serial.print("FC_POST_SENSOR MAG;X;");
+                Serial.print("FC_S MAG;X;");
                 Serial.println(magRaw.x, 5);
-                Serial.print("FC_POST_SENSOR MAG;Y;");
+                Serial.print("FC_S MAG;Y;");
                 Serial.println(magRaw.y, 5);
-                Serial.print("FC_POST_SENSOR MAG;Z;");
+                Serial.print("FC_S MAG;Z;");
                 Serial.println(magRaw.z, 5);
                 lastPrint = millis();
             }

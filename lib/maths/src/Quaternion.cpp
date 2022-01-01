@@ -1,3 +1,13 @@
+/**
+ * @file Quaternion.cpp
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #include "maths.h"
 
 int strpos4(const char* haystack, const char needle, int start = 0) {
@@ -216,6 +226,11 @@ void Quaternion::rotate(Vec3 &v) const {
     v.setFrom(q);
 }
 
+void Quaternion::rotateZ(Vec3 &v) const {
+    Quaternion q = Quaternion(EulerRotation(0,0,toEulerZYX().z));
+    q.rotate(v);
+}
+
 void Quaternion::rotateReverse(Vec3 &v) const {
     double len = v.getLength();
     // v.x *= -1;
@@ -228,4 +243,9 @@ void Quaternion::rotateReverse(Vec3 &v) const {
     v.setFrom(q);
     // v.x *= -1;
     v *= len;
+}
+
+void Quaternion::rotateReverseZ(Vec3 &v) const {
+    Quaternion q = Quaternion(EulerRotation(0,0,toEulerZYX().z));
+    q.rotateReverse(v);
 }

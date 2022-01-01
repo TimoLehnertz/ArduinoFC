@@ -1,3 +1,13 @@
+/**
+ * @file Comunicator.cpp
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #include <Arduino.h>
 #include <EEPROM.h>
 #include "Comunicator.h"
@@ -16,6 +26,8 @@ int strpos3(const char* haystack, const char needle, int start = 0) {
 void Comunicator::begin() {
     Serial.println("FC comunication initiated");
     Serial2.println("FC comunication initiated");
+    Serial4.begin(115200); // MSP
+    msp.begin(Serial4);
     pixels->begin();
 }
 
@@ -36,22 +48,63 @@ void Comunicator::handle() {
   }
   scheduleTelemetry();
   handleLED();
+  handleMsp();
+  handleStickCommands();
+  handleCRSFTelem();
+}
+
+void Comunicator::handleStickCommands() {
+  if(fc->isArmed()) return;
+  if(fc->chanels.roll < -0.9 && fc->chanels.pitch < -0.9 && fc->chanels.throttle < 0.05 && fc->chanels.yaw > 0.9) {
+    if(scMagCalibStart == 0) {
+      scMagCalibStart = millis();
+    }
+    if(millis() > scMagCalibStart + 3000) {
+      uint32_t color = pixels->Color(0,0,100);
+      pixels->fill(color, 0, 5);
+      pixels->show();
+      sensors->calibrateMag();
+      scMagCalibStart = 0;
+    }
+  } else {
+    scMagCalibStart = 0;
+  }
 }
 
 void Comunicator::handleLED() {
   if(!useLeds) return;
   if(millis() - (1000 / ledFreq) > lastLED) {
     pixels->clear();
-    if(fc->isArmed()) {
-      double angle = min(ins->getMaxAngleDeg(), 5);
-      double maxA = 5;
+    // if(fc->isArmed()) {
+      // double angle = min(ins->getMaxAngleDeg(), 5);
+      double angle = angleFromCoordinate(ins->sensors->gps.lat, ins->sensors->gps.lng, ins->complementaryFilter.centerLat, ins->complementaryFilter.centerLng);
+      // Serial.println(ins->getYaw() * RAD_TO_DEG);
+      // Serial.println(angleFromTo(360, 0));
+      // Serial.println(angle);
+      // Serial.println(angleFromTo(ins->getYaw() * RAD_TO_DEG, 360));
+      angle = min(90, abs(angleFromTo(ins->getYaw() * RAD_TO_DEG, angle)));
+      // double angle = min(90, abs(angleFromTo(ins->getYaw() * RAD_TO_DEG, 0)));
+
+      
       double brightness = 100;
-      double prog = (angle / maxA);
+
+      double yaw = min(90, abs(ins->getYaw() * RAD_TO_DEG));
+      
+      double prog = (yaw / 90);
       uint32_t color = pixels->Color(prog * brightness, (1 - prog) * brightness * 2, 0);
-      pixels->fill(color, 0, 10);
-    } else {
-      drawLedIdle();
-    }
+      pixels->fill(color, 1, 1);
+      
+      prog = (angle / 90);
+      color = pixels->Color(prog * brightness, (1 - prog) * brightness * 2, 0);
+      pixels->fill(color, 2, 1);
+
+      prog = !sensors->gps.locationValid;
+      color = pixels->Color(prog * brightness, (1 - prog) * brightness * 2, 0);
+      pixels->fill(color, 0, 1);
+      
+    // } else {
+    //   drawLedIdle();
+    // }
     pixels->show();
     lastLED = millis();
   }
@@ -74,6 +127,275 @@ void Comunicator::scheduleTelemetry() {
     postTelemetry();
     lastTelem = now;
   }
+}
+
+// #define MSP_FC_VERSION 3
+#define MSP_OSD_CONFIG 10
+#define MSP_PID_ADVANCED 94
+#define MSP_SET_PID_ADVANCED 95
+#define MSP_SET_RC_TUNING 204
+#define MSP_RC_TUNING 111
+
+void Comunicator::handleMsp() {
+  static char pos = 0;
+  static uint8_t mId = 0;
+  static uint8_t mSize = 0;
+  bool gotData = false;
+  static uint8_t mspBuff[100];
+  static uint8_t mspBuffSize = 0;
+  static uint8_t checksum = 0;
+
+  while(Serial4.available()) {
+    char c = Serial4.read();
+    // Serial.write(c);
+    if(c == '$') {
+      pos = 0;
+    }
+    if(pos == 1 && c != 'M') {
+      pos = 0;
+      // Serial.println("invalid preamble");
+    }
+    if(pos == 2 && c != '<') {
+      pos = 0;
+      // Serial.println("invalid direction");
+    }
+    if(pos == 3) {
+      mSize = c;
+      // Serial.print("size:");
+      // Serial.println(mSize);
+    }
+    if(pos == 4) {
+      mId = c;
+      // Serial.print("id:");
+      // Serial.println(mId);
+      checksum = mSize ^ mId;
+      mspBuffSize = 0;
+    }
+    if(pos > 4 && pos - 5 < mSize) {
+      mspBuff[mspBuffSize] = c;
+      
+      mspBuffSize++;
+      checksum ^= c;
+      if(mspBuffSize >= 100) {
+        mspBuffSize = 0;
+        Serial.println("MSP overflow");
+      }
+    }
+    if(pos == mSize + 5) {
+      if(checksum == c) {
+        gotData = true;
+      } else {
+        Serial.print("Invalid checksum ");
+        // Serial.println(checksum);
+        // Serial.print("$M<,");
+        // Serial.print(mSize);
+        // Serial.print(",");
+        // Serial.print(mId);
+        // Serial.print(",");
+        // for (size_t i = 0; i < mSize; i++) {
+        //   Serial.print(mspBuff[i]);
+        //   Serial.print(",");
+        // }
+        Serial.println((uint8_t)c);
+      }
+    }
+    pos++;
+  }
+  
+  // handle request
+  if(gotData) {
+    // Serial.println(mId);
+    if(mId != 84 && mId != 101 && mId != 105 && mId != 106 && mId != 107 && mId != 108 && mId != 109 &&mId != 134 &&mId != 247 &&  mId != 110 && mId != 111 && mId != 112 && mId != 130 && mId != 150 && mId != 3 && mId != 10 && mId != 92 && mId != 94) {
+      Serial.println(mId);
+    }
+    switch(mId) {
+      // case MSP_RAW_GPS: {
+      //   // Serial.println("writing GPS");
+      //   uint8_t payload[30];
+      //   payload[0] = sensors->gps.satelites > 10;
+      //   payload[1] = sensors->gps.satelites;
+      //   *(uint32_t*) &payload[2]  = sensors->gps.lat * 10000000;
+      //   *(uint32_t*) &payload[6]  = sensors->gps.lng * 10000000;
+      //   *(uint16_t*) &payload[10] = (int) ins->getLocation().z;
+      //   *(uint16_t*) &payload[12] = (int) ins->getVelocity().getLength2D();
+      //   *(uint16_t*) &payload[14] = (int) sensors->gps.speed * 100;
+      //   *(uint16_t*) &payload[16] = (int) sensors->gps.course * 10;
+      //   msp.send(MSP_RAW_GPS, payload, 30);
+      //   break;
+      // }
+      case MSP_PID: {
+        uint8_t payload[30];
+        if(fc->flightMode == FlightMode::rate) {
+          payload[0] = fc->rateRollPID.p * 10000.0;
+          payload[1] = fc->rateRollPID.i * 10000.0;
+          payload[2] = fc->rateRollPID.d * 10000.0;
+          payload[3] = fc->ratePitchPID.p * 10000.0;
+          payload[4] = fc->ratePitchPID.i * 10000.0;
+          payload[5] = fc->ratePitchPID.d * 10000.0;
+        } else if(fc->flightMode == FlightMode::level) {
+          payload[0] = fc->levelRollPID.p * 10000.0;
+          payload[1] = fc->levelRollPID.i * 10000.0;
+          payload[2] = fc->levelRollPID.d * 10000.0;
+          payload[3] = fc->levelPitchPID.p * 10000.0;
+          payload[4] = fc->levelPitchPID.i * 10000.0;
+          payload[5] = fc->levelPitchPID.d * 10000.0;
+        } else if(fc->flightMode == FlightMode::altitudeHold) {
+          payload[0] = fc->altitudePID.p * 10000.0;
+          payload[1] = fc->altitudePID.i * 10000.0;
+          payload[2] = fc->altitudePID.d * 10000.0;
+
+          payload[3] = 0;
+          payload[4] = 0;
+          payload[5] = 0;
+        } else if(fc->flightMode == FlightMode::gpsHold) {
+          payload[0] = fc->velPIDx.p * 10000.0;
+          payload[1] = fc->velPIDx.i * 10000.0;
+          payload[2] = fc->velPIDx.d * 10000.0;
+
+          payload[3] = 0;
+          payload[4] = 0;
+          payload[5] = 0;
+        }
+
+        payload[6] = fc->rateYawPID.p * 10000.0;
+        payload[7] = fc->rateYawPID.i * 10000.0;
+        payload[8] = fc->rateYawPID.d * 10000.0;
+        
+        msp.send(MSP_PID, payload, 30);
+        break;
+      }
+      case MSP_SET_PID: {
+        Serial.println("Setting PID:");
+        for (size_t i = 0; i < mSize; i++) {
+          Serial.println(mspBuff[i]);
+        }
+
+        if(fc->flightMode == FlightMode::rate) {
+          fc->rateRollPID.p = mspBuff[0] / 10000.0;
+          fc->rateRollPID.i = mspBuff[1] / 10000.0;
+          fc->rateRollPID.d = mspBuff[2] / 10000.0;
+          fc->ratePitchPID.p = mspBuff[3] / 10000.0;
+          fc->ratePitchPID.i = mspBuff[4] / 10000.0;
+          fc->ratePitchPID.d = mspBuff[5] / 10000.0;
+        } else if(fc->flightMode == FlightMode::level) {
+          fc->levelRollPID.p = mspBuff[0] / 10000.0;
+          fc->levelRollPID.i = mspBuff[1] / 10000.0;
+          fc->levelRollPID.d = mspBuff[2] / 10000.0;
+          fc->levelPitchPID.p = mspBuff[3] / 10000.0;
+          fc->levelPitchPID.i = mspBuff[4] / 10000.0;
+          fc->levelPitchPID.d = mspBuff[5] / 10000.0;
+        } else if(fc->flightMode == FlightMode::altitudeHold) {
+          fc->altitudePID.p = mspBuff[0] / 10000.0;
+          fc->altitudePID.i = mspBuff[1] / 10000.0;
+          fc->altitudePID.d = mspBuff[2] / 10000.0;
+        } else if(fc->flightMode == FlightMode::gpsHold) {
+          fc->velPIDx.p = mspBuff[0] / 10000.0;
+          fc->velPIDx.i = mspBuff[1] / 10000.0;
+          fc->velPIDx.d = mspBuff[2] / 10000.0;
+
+          fc->velPIDy.p = mspBuff[0] / 10000.0;
+          fc->velPIDy.i = mspBuff[1] / 10000.0;
+          fc->velPIDy.d = mspBuff[2] / 10000.0;
+        }
+
+
+        fc->rateYawPID.p = mspBuff[6] / 10000.0;
+        fc->rateYawPID.i = mspBuff[7] / 10000.0;
+        fc->rateYawPID.d = mspBuff[8] / 10000.0;
+        break;
+      }
+      case MSP_SET_PID_ADVANCED: {
+        Serial.println("Setting PID advanced:");
+        for (size_t i = 0; i < mSize; i++) {
+          Serial.println(mspBuff[i]);
+        }
+        fc->rateRollPID.dlpf  = mspBuff[32] / 10000.0;
+        fc->ratePitchPID.dlpf = mspBuff[34] / 10000.0;
+        fc->rateYawPID.dlpf   = mspBuff[36] / 10000.0;
+        fc->antiGravityMul = mspBuff[21] / 100.0;
+        break;
+      }
+      case MSP_PID_ADVANCED: {
+        uint8_t payload[47];
+        for (size_t i = 0; i < 47; i++)
+        {
+          payload[i] = 0;
+        }
+        
+        payload[32] = fc->rateRollPID.dlpf * 10000.0;
+        payload[34] = fc->ratePitchPID.dlpf * 10000.0;
+        payload[36] = fc->rateYawPID.dlpf * 10000.0;
+        payload[21] = fc->antiGravityMul * 100.0;
+        msp.send(MSP_PID_ADVANCED, payload, 47);
+        break;
+      }
+      case MSP_ANALOG: {
+        uint8_t payload[7];
+        if(useVCell) {
+          payload[0] = (uint8_t) ((int) (sensors->bat.vCell * 10));
+        } else {
+          payload[0] = (uint8_t) ((int) (sensors->bat.vBat * 10));
+        }
+        msp.send(MSP_ANALOG, payload, 7);
+        break;
+      }
+      case MSP_RC_TUNING: {
+        uint8_t payload[14];
+
+        payload[0] = round(fc->rollRate.getRC() * 100);
+        payload[1] = round(fc->rollRate.getRCExpo() * 100);
+        payload[2] = round(fc->rollRate.getSuper() * 100);
+
+        payload[12] = round(fc->pitchRate.getRC() * 100);
+        payload[13] = round(fc->pitchRate.getRCExpo() * 100);
+        payload[3] =  round(fc->pitchRate.getSuper() * 100);
+
+        payload[11] = round(fc->yawRate.getRC() * 100);
+        payload[10] = round(fc->yawRate.getRCExpo() * 100);
+        payload[4] =  round(fc->yawRate.getSuper() * 100);
+
+        msp.send(MSP_RC_TUNING, payload, 14);
+        break;
+      }
+      case MSP_SET_RC_TUNING: {
+        Serial.println("Setting rate:");
+        for (size_t i = 0; i < mSize; i++) {
+          Serial.println(mspBuff[i]);
+        }
+        fc->rollRate.setRc (mspBuff[0] / 100.0);
+        fc->rollRate.setRCExpo(mspBuff[1] / 100.0);
+        fc->rollRate.setSuper(mspBuff[2] / 100.0);
+
+        fc->pitchRate.setRc (mspBuff[12] / 100.0);
+        fc->pitchRate.setRCExpo(mspBuff[13] / 100.0);
+        fc->pitchRate.setSuper(mspBuff[3] / 100.0);
+
+        fc->yawRate.setRc (mspBuff[11] / 100.0);
+        fc->yawRate.setRCExpo(mspBuff[10] / 100.0);
+        fc->yawRate.setSuper(mspBuff[4] / 100.0);
+        break;
+      }
+      case MSP_STATUS: {
+        // Serial.println("sending status");
+        uint8_t payload[11];
+        // *(uint16_t*) &payload[0] = loopTimeUs;
+        // *(uint16_t*) &payload[2] = 0; // I2C Error count
+        // *(uint16_t*) &payload[4] = 0; // sensors
+
+        for (size_t i = 0; i < 11; i++) {
+          payload[i] = fc->isArmed() ? 0xFF : 0;
+        }
+        msp.send(MSP_STATUS, payload, 11);
+        break;
+      }
+      case 250: {
+        saveEEPROM();
+        break;
+      }
+    }
+    gotData = false;
+  }
+  mspRoundRobin = (mspRoundRobin + 1) % 1;
 }
 
 void Comunicator::postTelemetry() {
@@ -127,6 +449,7 @@ void Comunicator::postTelemetry() {
     postSensorData("BARO", "Alt", ins->complementaryFilter.baroAltitude);
     // postSensorData("BARO(f)", "Alt", ins->getLastFilteredBaroAltitude());
     postSensorData("BARO(speed m/s)", "Alt", ins->complementaryFilter.baroAltSpeed);
+    postSensorData("BARO(raw)", "Alt", sensors->baro.altitude);
   }
 
   if(useGpsTelem) {
@@ -179,8 +502,8 @@ void Comunicator::postTelemetry() {
     // postSensorData("RateAdj", "Roll", fc->rollRateAdjust);
     // postSensorData("RateAdj", "Pitch", fc->pitchRateAdjust);
     // postSensorData("RateAdj", "Yaw", fc->yawRateAdjust);
-    // // postSensorData("Rate PID Roll", fc->rateRollPID);
-    // // postSensorData("Rate PID Pitch", fc->ratePitchPID);
+    postSensorData("Rate PID Roll", fc->rateRollPID);
+    postSensorData("Rate PID Pitch", fc->ratePitchPID);
     // // postSensorData("Rate PID Yaw", fc->rateYawPID);
     // postSensorData("Level PID Roll", fc->levelRollPID);
     // // postSensorData("Level PID Pitch", fc->levelPitchPID);
@@ -1185,7 +1508,8 @@ void Comunicator::handleCRSFTelem() {
 
   crsf->updateTelemetryBattery(useCellVoltage ? sensors->bat.vCell : sensors->bat.vBat, fc->gForce, fc->maxGForce, max(0, ((sensors->bat.vCell - 3.3) / 0.9) * 100));
   crsf->updateTelemetryAttitude(-ins->getRoll(), -ins->getPitch(), ins->getYaw());
-  crsf->updateTelemetryGPS(sensors->gps.lat, sensors->gps.lng, ins->getVelocity().getLength2D(), (ins->getEulerRotationZYX().getYaw() * RAD_TO_DEG) / 1, ins->getLocation().z, sensors->gps.satelites);
+  crsf->updateTelemetryGPS(sensors->gps.lat, sensors->gps.lng, ins->getVelocity().getLength2D(), ins->getYaw(), ins->getLocation().getLength2D(), sensors->gps.satelites);
+  // crsf->updateTelemetryGPS(sensors->gps.lat, sensors->gps.lng, ins->getVelocity().getLength2D(), ins->getYaw(), ins->getLocation().z, sensors->gps.satelites);
   switch(fc->flightMode) {
     case FlightMode::none: {
       crsf->updateTelemetryFlightMode("None"); break;

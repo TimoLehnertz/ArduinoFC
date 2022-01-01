@@ -1,6 +1,15 @@
+/**
+ * @file crossfire.cpp
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #include <Arduino.h>
 #include "crossfire.h"
-// #include "../../src/setup.h"
 
 void Crossfire::handle() {
     while(uart->available()) {
@@ -180,8 +189,8 @@ void Crossfire::updateTelemetryGPS(float lat, float lng, float groundSpeed, floa
 }
 
 void Crossfire::updateTelemetryBattery(float vBat, float batCurrent, uint32_t mahDraw, int remainingPercent) {
-    this->batAvgCellVoltage = vBat * 10;
-    this->batCurrent = batCurrent * 10;
+    this->batAvgCellVoltage = round(vBat * 10);
+    this->batCurrent = round(batCurrent * 10);
     this->mahDraw = mahDraw;
     this->batRemainingPercentage = remainingPercent;
 }

@@ -70,7 +70,6 @@ int MechaQMC5883::read(int* x,int* y,int* z,float* a){
   return err;
 }
 
-
 float MechaQMC5883::azimuth(int *a, int *b){
   float azimuth = atan2((int)*a,(int)*b) * 180.0/PI;
   return azimuth < 0?360 + azimuth:azimuth;

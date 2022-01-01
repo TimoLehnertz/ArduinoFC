@@ -1,9 +1,20 @@
+/**
+ * @file Comunicator.h
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #ifndef comunicator
 #define comunicator
 #include <ins.h>
 #include <FC.h>
 #include <Storage.h>
 #include <Adafruit_NeoPixel.h>
+#include <msp.h>
 
 /**
  * Comunication protocol:
@@ -83,6 +94,7 @@ public:
     void readEEPROM();
 
 	void handleCRSFTelem();
+	void handleStickCommands();
 
 	bool useLeds = false;
 
@@ -105,6 +117,8 @@ private:
 	bool useBatTelem = false;
 	bool useUltrasonicTelem = false;
 
+	uint32_t scMagCalibStart = 0;
+
     char buffer[256];
     byte bufferCount = 0;
     int telemetryFreq = 30; //Hz
@@ -113,6 +127,10 @@ private:
 
 	int ledFreq = 120;
 	uint32_t lastLED = 0;
+
+	uint32_t lastMsp = 0;
+	uint8_t mspRoundRobin = 0;
+	MSP msp = MSP();
 
     void processSerialLine();
     void post(const char* command, const char* value);
@@ -131,8 +149,33 @@ private:
     void scheduleTelemetry();
     void postTelemetry();
 
+	void handleMsp();
+
 	void handleLED();
 	void drawLedIdle();
+
+	double angleFromTo(double xDeg, double yDeg) {
+		double x = xDeg * DEG_TO_RAD;
+		double y = yDeg * DEG_TO_RAD;
+		return atan2(sin(y-x), cos(y-x)) * RAD_TO_DEG;
+	}
+
+	double angleFromCoordinate(double lat1, double long1, double lat2, double long2) {
+
+        double dLon = (long2 - long1);
+
+        double y = sin(dLon) * cos(lat2);
+        double x = cos(lat1) * sin(lat2) - sin(lat1)
+                * cos(lat2) * cos(dLon);
+
+        double brng = atan2(y, x);
+
+        brng = brng * RAD_TO_DEG;
+        brng = (int) (brng + 360) % 360;
+        brng = 360 - brng; // count degrees counter-clockwise - remove to make clockwise
+
+        return brng;
+    }
 };
 
 #endif

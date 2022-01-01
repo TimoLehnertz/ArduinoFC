@@ -1,3 +1,13 @@
+/**
+ * @file maths.h
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #pragma once
 #include <Arduino.h>
 
@@ -207,7 +217,9 @@ public:
     EulerRotation toEulerZYX() const;
 
     void rotate(Vec3&) const;
+    void rotateZ(Vec3&) const;
     void rotateReverse(Vec3&) const;
+    void rotateReverseZ(Vec3&) const;
 
     Quaternion normalize();
     Quaternion conjugate();

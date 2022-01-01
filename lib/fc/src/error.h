@@ -1,6 +1,11 @@
-#pragma once
 /**
- * Header file for all error related stuff
+ * @file error.h
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
  * 
  * Principle:
  *      Anything that is required for ratemode to be operational has to be at least in warning state.
@@ -8,6 +13,7 @@
  *
  *      Anything that is not required for rate mode is optional stuff. So if a sensor would be to fail mid flight the aircraft should continue in the best flight mode it can hold up
  */
+#pragma once
 
 /**
  * Error Enum used for sensors and more.

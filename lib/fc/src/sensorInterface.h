@@ -1,3 +1,13 @@
+/**
+ * @file sensorInterface.h
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #pragma once
 #include <error.h>
 #include <flightModes.h>
@@ -148,7 +158,7 @@ struct GPS : public Sensor{
     GPS() : Sensor(FlightMode::gpsHold) {}
 
     void checkError() {
-        if(micros() - lastChange > 2000000 || satelites < 3) { // 2 sec timeout
+        if(micros() - lastChange > 2000000) {// || satelites < 3) { // 2 sec timeout
             error = Error::CRITICAL_ERROR;
         } else {
             error = Error::NO_ERROR;

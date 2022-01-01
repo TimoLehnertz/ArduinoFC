@@ -1,3 +1,13 @@
+/**
+ * @file Storage.h
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #ifndef storage
 #define storage
 #include <Maths.h>

@@ -1,3 +1,13 @@
+/**
+ * @file Storage.cpp
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #include "Storage.h"
 #include <EEPROM.h>
 #include <Arduino.h>

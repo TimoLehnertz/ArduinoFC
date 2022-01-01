@@ -1,3 +1,13 @@
+/**
+ * @file Matrix.cpp
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #include "maths.h"
 
 Matrix3::Matrix3(double s0, double s1, double s2, double s3, double s4, double s5, double s6, double s7, double s8) {

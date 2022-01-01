@@ -1,8 +1,16 @@
+/**
+ * @file Motor.h
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #pragma once
 #include <Arduino.h>
-// #include <Servo.h>
-#include "../../Servo/src/Servo.h"
-
+// #include "../../Servo/src/Servo.h"
 
 enum MotorProtocol {
     PWM,

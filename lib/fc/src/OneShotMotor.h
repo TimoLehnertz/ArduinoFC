@@ -1,6 +1,16 @@
+/**
+ * @file OneShotMotor.h
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #include <Arduino.h>
 #include <Motor.h>
-#include "../../Servo/src/Servo.h"
+// #include "../../Servo/src/Servo.h"
 
 #define ONE_SHOT_MIN_US 125
 #define ONE_SHOT_MAX_US 250
@@ -78,7 +88,7 @@ public:
     }
 
 private:
-    Servo servo;
+    // Servo servo;
     bool arming = false;
 
     int minPWM = 1000;

@@ -1,3 +1,13 @@
+/**
+ * @file ComplementaryFilter.h
+ * @author Timo Lehnertz
+ * @brief 
+ * @version 0.1
+ * @date 2022-01-01
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
 #pragma once
 #include "SensorFusion.h"
 #include <sensorInterface.h>
@@ -15,6 +25,9 @@ public:
     double baroAltSpeed = 0;
     double magZOffsetDeg = 0.0;
     double baroAltitude = 0;
+    // GPS
+    double centerLat = 0;
+    double centerLng = 0;
 
     void begin() {
         // nothing to do
@@ -94,8 +107,6 @@ private:
     bool headDown = false;
     
     // GPS
-    double centerLat = 0;
-    double centerLng = 0;
     double lastLat = 0;
     double lastLng = 0;
 
@@ -125,28 +136,31 @@ private:
                 rot = Quaternion::lerp(accRot, rot, 1 - accInfluence);
             }
         }
-         //subtracting gravity
+        //  subtracting gravity
         Vec3 accel = acc * G;
         //rotate acceleration
         rot.rotate(accel);
         accel -= Vec3(0, 0, G);
-        vel += accel * elapsedSeconds;
+        vel.z += accel.z * elapsedSeconds;
         
-        float baroAltitudeInfl = abs(baroAltitude - loc.z) * 0.0001;
+        // float baroAltitudeInfl = abs(baroAltitude - loc.z) * 0.005;
 
         // Velocity relaxing
-        vel.x *= 0.9999;
-        vel.y *= 0.9999;
+        // vel.x *= 0.9999;
+        // vel.y *= 0.9999;
 
         //location
-        loc += vel * elapsedSeconds;
+        // loc += vel * elapsedSeconds;
 
         // loc.x = 0;
         // loc.y = 0;
 
-        loc.z = loc.z * (1 - baroAltitudeInfl) + baroAltitude * baroAltitudeInfl;
-        vel.z = vel.z * (1 - baroAltitudeInfl) + baroAltSpeed * baroAltitudeInfl;
-        // loc = accel.clone();
+        double baroAltSpdInf = 0.0001;
+        // double baroAltSpdInf = 0.1;
+        double baroAltInf = 0.005;
+
+        loc.z = loc.z * (1 - baroAltInf) + baroAltitude * baroAltInf;
+        vel.z = vel.z * (1 - baroAltSpdInf) + baroAltSpeed * baroAltSpdInf;
     }
 
     void processGyro(const Vec3 &gyro, uint32_t deltaT) {
@@ -166,7 +180,8 @@ private:
         headDown = facing.z < 0.1;
     }
 
-    void processMag(const Vec3 &mag) {
+    void processMag(const Vec3 &mag1) {
+        Vec3 mag = mag1.clone();
         float roll = rot.toEulerZYX().x * RAD_TO_DEG;
         float pitch = rot.toEulerZYX().y * RAD_TO_DEG;
 
@@ -175,22 +190,24 @@ private:
         // magFiltered.y = mag.x * cos(pitch) + mag.y * sin(roll) * sin(pitch) - mag.z * cos(roll) * sin(pitch);
         // magFiltered.x = mag.y * cos(roll) + mag.z *sin(roll);
 
-        double limDeg = 5;
+        double limDeg = 25;
         if(pitch < limDeg && pitch > -limDeg && roll < limDeg && roll > -limDeg) {
+            mag.toUnitLength();
+            EulerRotation euler(rot.toEulerZYX().y, -rot.toEulerZYX().x, 0);
+            euler.rotate(mag);
+
+            // Serial.print("FC_S MAG(t);X;");Serial.println(mag.x);
+            // Serial.print("FC_S MAG(t);Y;");Serial.println(mag.y);
+            // Serial.print("FC_S MAG(t);Z;");Serial.println(mag.z);
+            
+
             double magRotRad = atan2(mag.y, mag.x);
-            // if(millis() % 10 == 0) {
-            //     Serial.println(magRotRad);
-            // }
+
             magRotRad += magZOffsetDeg * DEG_TO_RAD;
-            // if(magRotRad > PI) {
-            //     magRotRad = -PI + magRotRad;
-            // }
-            // if(magRotRad < -PI) {
-            //     magRotRad = PI + magRotRad;
-            // }
+
             Quaternion magRot(EulerRotation(rot.toEulerZYX().x, -rot.toEulerZYX().y, magRotRad));
             rot = Quaternion::lerp(magRot, rot, magCounter == 10 ? 0.0 : 1 - magInfluence);
-            magCounter++;
+            // magCounter++;
         }
     }
 
@@ -200,8 +217,12 @@ private:
         if(baroOffset == 0.0) {
             baroOffset = altitude;
         }
-        double lpf = 0.5;
         const double altitudeFiltered = altitude - baroOffset;
+        
+        double lpf = (max(0.1, min(10, abs(baroAltitude - altitudeFiltered))) * 0.04) - 0.001;
+        baroAltitude = lowPassFilter(baroAltitude, altitudeFiltered, lpf);
+        
+        lpf = (max(0.1, min(10, abs(baroAltitude - altitudeFiltered))) * 0.01);
         baroAltitude = lowPassFilter(baroAltitude, altitudeFiltered, lpf);
         // baroAltitude = altitudeFiltered;
 
@@ -209,7 +230,9 @@ private:
             lastBaroAlt = altitudeFiltered;
         }
         double tmpBaroSpd = (baroAltitude - lastBaroAlt) / elapsedSeconds;
-        baroAltSpeed = lowPassFilter(baroAltSpeed, tmpBaroSpd, 0.00001);
+        lpf = (max(0, min(10, abs(baroAltSpeed - tmpBaroSpd))) * 0.001) + 0.01;
+        baroAltSpeed = lowPassFilter(baroAltSpeed, tmpBaroSpd, lpf);
+        // baroAltSpeed = tmpBaroSpd;
         lastBaroAlt = baroAltitude;
     }
 
@@ -217,25 +240,65 @@ private:
         static Vec3 lastGPSloc = Vec3();
         if(gps.locationValid) {
             if(centerLat == 0) {
-                centerLat = -gps.lat;
+                centerLat = gps.lat;
                 centerLng = gps.lng;
             }
-            double gpsInf = 0.05;
-            loc.y = (-gps.lat - centerLat) * (EARTH_CIRCUM / 360.0)                             * gpsInf + loc.y * (1 - gpsInf);
-            loc.x = (gps.lng - centerLng) * (EARTH_CIRCUM / 360.0) * cos(gps.lng * DEG_TO_RAD)  * gpsInf + loc.x * (1 - gpsInf);
-            lastLat = -gps.lat;
+            // double gpsInf = 0.05;
+            loc.y = -(gps.lat - centerLat) * (EARTH_CIRCUM / 360.0);
+            loc.x = (gps.lng - centerLng) * (EARTH_CIRCUM / 360.0) * cos(gps.lng * DEG_TO_RAD);
+            lastLat = gps.lat;
             lastLng = gps.lng;
             if(lastGPSloc.getLength() != 0) {
                 // gpsInf *= 2; // reduce amount heavy of acc drift
                 double elapsedSeconds = deltaT / 1000000.0;
-                Vec3 gpsVel = (lastGPSloc - loc) / elapsedSeconds;
-                vel.x = gpsVel.x * gpsInf + vel.x * (1 - gpsInf);
-                vel.y = gpsVel.y * gpsInf + vel.y * (1 - gpsInf);
+                Vec3 gpsVel = (loc - lastGPSloc) / elapsedSeconds;
+                vel.x = gpsVel.x;
+                vel.y = gpsVel.y;
+                // skip z
                 // vel.x = 0;
                 // vel.y = 0;
             }
             lastGPSloc = loc.clone();
         }
+        // double course = -160;
+        // EulerRotation eulerRot = rot.toEulerZYX();
+        // double course = normalizeDeg(gps.course + 180);
+        // // Serial.println(course);
+
+        // double lpf = 0.1;
+
+        // // double zRot = eulerRot.z * RAD_TO_DEG + course / 2;
+
+        // double zRot = lerpDeg(eulerRot.z * RAD_TO_DEG, course, lpf);
+
+        // rot = Quaternion(EulerRotation(eulerRot.x, -eulerRot.y, -zRot * DEG_TO_RAD));
+        // Quaternion courseRot(EulerRotation(eulerRot.x, -eulerRot.y, course * DEG_TO_RAD));
+        // rot = Quaternion::lerp(rot, courseRot, 0.3);
+        // Serial.println("gps");
+    }
+
+    double lerpDeg(double from, double to, double fact) {
+
+        from = normalizeDeg(from) * DEG_TO_RAD;
+        to = normalizeDeg(to) * DEG_TO_RAD;
+        // from *= DEG_TO_RAD;
+        // to *= DEG_TO_RAD;
+
+        double deg = atan2(sin(from-to), cos(from-to)) * RAD_TO_DEG;
+
+        // Serial.println(deg);
+        // return from * RAD_TO_DEG + deg * fact;
+        return normalizeDeg(from * RAD_TO_DEG - deg * fact);
+    }
+
+    double normalizeDeg(double deg) {
+        while(deg > 180) {
+            deg -= 360;
+        }
+        while(deg < -180) {
+            deg += 360;
+        }
+        return deg;
     }
 
     void reset() {
@@ -243,8 +306,6 @@ private:
         magCounter = 0; // resetts rotation to compass after 100 readings
         loc = Vec3();
         vel = Vec3();
-        centerLat = lastLat;
-        centerLng = lastLng;
         resetAltitude();
     }
 
@@ -252,10 +313,15 @@ private:
         baroOffset = lastRawBaroAltitude;
         lastBaroAlt = baroAltitude;
         baroAltSpeed = 0;
+        centerLat = lastLat;
+        centerLng = lastLng;
         loc.z = 0;
+        vel.z = 0;
     }
 
     static double lowPassFilter(double prevFiltered, double now, double smoothing) {
+        if(smoothing < 0) smoothing = 0;
+        if(smoothing > 1) smoothing = 1;
 		return now * smoothing + prevFiltered * (1 - smoothing);
 	}
 };
