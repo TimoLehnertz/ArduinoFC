@@ -50,6 +50,8 @@ public:
     void setFusionAlgorythm(SensorFusion::FusionAlgorythm algorythm) {sensorFusionType = algorythm; begin();}
     double getRoll()        {return getEulerRotationZYX().getRoll();}
     double getRollRate()    {return sensors->gyro.x;}
+    double getMaxRate()     {return max(abs(sensors->gyro.x), max(abs(sensors->gyro.y), abs(sensors->gyro.z)));}
+    double getMaxRateExceptYaw()     {return max(abs(sensors->gyro.x), abs(sensors->gyro.y));}
     double getPitch()       {return getEulerRotationZYX().getPitch();}
     double getPitchRate()   {return sensors->gyro.y;}
     double getYaw()         {return getEulerRotationZYX().getYaw();}

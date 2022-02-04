@@ -14,7 +14,7 @@
 #include <pid.h>
 #include <fc.h>
 
-#define STORAGE_VERSION 314 // 3.14159265359
+#define STORAGE_VERSION 3145 // 3.14159265359
 
 #define STORAGE_SIZE_BOOL       (sizeof(bool)   * 1)
 #define STORAGE_SIZE_FLOAT      (sizeof(float)  * 1)
@@ -54,6 +54,7 @@ enum FloatValues {
     insAccMaxG,
 
     batLpf,
+    batOffset,
     batMul,
 
     insSensorFusion,

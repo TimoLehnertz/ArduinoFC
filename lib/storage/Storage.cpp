@@ -140,7 +140,7 @@ void Storage::writeDefaults() {
     Serial.println("Erasing EEPROM in 1s cut power to cancel!");
     Serial2.println("Erasing EEPROM in 1s cut power to cancel!");
     delay(1000);
-    write(BoolValues::propsIn, true);
+    write(BoolValues::propsIn, false);
     write(BoolValues::useLeds, true);
     write(BoolValues::useAntiGravity, true);
     write(BoolValues::useVCell, true);
@@ -164,11 +164,12 @@ void Storage::writeDefaults() {
     write(FloatValues::gyroLPF, 1.0f);
     write(FloatValues::accInsInf, 0.0002f);
     write(FloatValues::magInsInf, 1.0f);
-    write(FloatValues::antiGravityMul, 1.0f);
+    write(FloatValues::antiGravityMul, 4.0f);
     write(FloatValues::boostLpf, 0.005f);
     write(FloatValues::boostSpeed, 40.0f);
     write(FloatValues::batLpf, 0.001f);
-    write(FloatValues::batMul, 12.10f);
+    write(FloatValues::batOffset, -0.105);
+    write(FloatValues::batMul, 13.3f);
 
     write(FloatValues::insSensorFusion, 0.0f);
 

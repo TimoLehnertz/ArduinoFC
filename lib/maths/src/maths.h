@@ -200,6 +200,14 @@ public:
     double getPitch();
     double getRoll();
     double getYaw();
+
+    double getMaxDeg() {
+        return max(abs(x), max(abs(x), abs(y))) * RAD_TO_DEG;
+    }
+
+    double getMaxDegExeptYaw() {
+        return max(abs(x), abs(x)) * RAD_TO_DEG;
+    }
 };
 
 class Quaternion : public Rotation {

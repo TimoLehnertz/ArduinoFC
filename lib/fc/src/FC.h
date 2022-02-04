@@ -22,15 +22,15 @@
  * Default pids
  */
 //rates
-#define RATE_PID_RP                 0.00180f//Roll
-#define RATE_PID_RI                 0.00210f
-#define RATE_PID_RD                 0.00960f
+#define RATE_PID_RP                 0.00110f//Roll
+#define RATE_PID_RI                 0.00800f
+#define RATE_PID_RD                 0.00370f
 #define RATE_PID_RD_LPF             0.10000f
 #define RATE_PID_R_MAX              1.00000f
 
-#define RATE_PID_PP                 0.00180f//pitch
-#define RATE_PID_PI                 0.00210f
-#define RATE_PID_PD                 0.00960f
+#define RATE_PID_PP                 0.00110f//pitch
+#define RATE_PID_PI                 0.00800f
+#define RATE_PID_PD                 0.00370f
 #define RATE_PID_PD_LPF             0.10000f
 #define RATE_PID_P_MAX              1.00000f
 
@@ -41,8 +41,8 @@
 #define RATE_PID_Y_MAX              1.00000f
 
 //levels
-#define LEVEL_PID_RP                0.00250f//Roll
-#define LEVEL_PID_RI                0.00500f
+#define LEVEL_PID_RP                0.00500f//Roll
+#define LEVEL_PID_RI                0.05000f
 #define LEVEL_PID_RD                0.00050f
 #define LEVEL_PID_RD_LPF            1.00000f
 #define LEVEL_PID_R_MAX             1.00000f
@@ -140,10 +140,11 @@ public:
 
     // Anti gravity
     bool useAntiGravity = true;
-    float antiGravityMul = 1.0f;
+    float antiGravityMul = 4.0f;
     float boostLpf = 0.005;
     float boostSpeed = 40;
     float iBoost = 0;
+    bool isAntiGravity = false;
 
     double angleModeMaxAngle = ANGLE_MODE_MAX_ANGLE;
 
@@ -159,6 +160,8 @@ public:
 
     double throttleMul4S = 1.0;
     double throttleMul6S = 1.0;
+
+    boolean levelInfluencingRate = false;
 
     INS* ins;
     PID rateRollPID;
@@ -189,7 +192,12 @@ public:
     // Statistics
     float gForce = 1.0f;
     float maxGForce = 1.0f;
-    
+
+    Quaternion gyroRot;
+    Quaternion pilotRot;
+
+    uint64_t lastLoop = 0;
+
     FC(INS* ins, Motor* mFL, Motor* mFR, Motor* mBL, Motor* mBR, Crossfire* crsf) :
         ins(ins),
         rateRollPID     (RATE_PID_RP,       RATE_PID_RI,    RATE_PID_RD,    RATE_PID_RD_LPF,    RATE_PID_R_MAX),
@@ -202,7 +210,8 @@ public:
         velPIDx         (VEL_PID_P,         VEL_PID_I,      VEL_PID_D,      VEL_PID_D_LPF,      VEL_PID_MAX),
         velPIDy         (VEL_PID_P,         VEL_PID_I,      VEL_PID_D,      VEL_PID_D_LPF,      VEL_PID_MAX),
         crsf(crsf),
-        mFL(mFL), mFR(mFR), mBL(mBL), mBR(mBR) {
+        mFL(mFL), mFR(mFR), mBL(mBL), mBR(mBR),
+        gyroRot(), pilotRot() {
         }
 
     void begin() {
@@ -222,6 +231,10 @@ public:
      * Handles motors
      */
     void handle() {
+        // Timing
+        double deltaT = micros() - lastLoop;
+        lastLoop = micros();
+        float elapsedS = deltaT / 1000000.0f;
         altitudePID.minOut = 0;
         handleArm();
         handleFlightMode();
@@ -242,6 +255,24 @@ public:
         Vec3 velGlobalDes = velLocalDes.clone();
         ins->getQuaternionRotation().rotateZ(velGlobalDes);//rotate from local to Global
 
+        // Quaternion stuff
+        // Gyro Rotation
+        Vec3 gyro = ins->sensors->gyro.getVec3();
+        gyro.x *= -1; //align with sticks
+        EulerRotation localGyroRotEuler((gyro * elapsedS).toRad(), ZYX_EULER);
+        Quaternion localGyroRotQ(localGyroRotEuler);
+        gyroRot *= localGyroRotQ;
+        gyroRot.normalize();
+
+        // Pilot Rotation
+        Vec3 pilot = pilotRateFromChanels(chanels);
+        pilot.y *= -1;
+        pilot *= -1;
+        EulerRotation localPilotRotEuler((pilot * elapsedS).toRad(), ZYX_EULER);
+        Quaternion localPilotRotQ(localPilotRotEuler);
+        pilotRot *= localPilotRotQ;
+        pilotRot.normalize();
+
         switch(flightMode) {
             case FlightMode::wayPoint: {
                 Vec3 vecToPoint = wayPoint - ins->getLocation();
@@ -250,7 +281,7 @@ public:
                 double desYaw = angleFromCoordinate(ins->sensors->gps.lat, ins->sensors->gps.lng, ins->complementaryFilter.centerLat, ins->complementaryFilter.centerLng);
 
                 // adjust altitude if no pilot input
-                if(chanels.throttle > 0.45 && chanels.throttle < 0.55) {
+                if(chanels.throttle > 0.1 && chanels.throttle < 0.9) {
                     velGlobalDes.z = max(min(vecToPoint.z, gpsMaxSpeedVertical), -gpsMaxSpeedVertical);   //     desRollAngle = 0;
                 }
 
@@ -285,17 +316,44 @@ public:
                 }
             }
             case FlightMode::level: {
-                rollRateAdjust = levelRollPID.compute(-ins->getRoll() * RAD_TO_DEG, desRollAngle, ins->getRollRate());
+                rollRateAdjust  = levelRollPID.compute(-ins->getRoll() * RAD_TO_DEG, desRollAngle, ins->getRollRate());
                 pitchRateAdjust = levelPitchPID.compute(-ins->getPitch() * RAD_TO_DEG, desPitchAngle, ins->getPitchRate());
-                yawRateAdjust = rateYawPID.compute(ins->getYawRate(), desYawRate);
+                yawRateAdjust   = rateYawPID.compute(ins->getYawRate(), desYawRate);
                 break;
             }
             case FlightMode::rate: {
+                
+                // pilotRot = Quaternion::lerp(pilotRot, gyroRot, 0.01);
+                // Quaternion qAdjust = pilotRot * gyroRot.clone().conjugate();
+                // EulerRotation euler = qAdjust.toEulerZYX();
+
+                // levelInfluencingRate = true;
+                // double levelInfluence = 0.1;
+
+                // Vec3 pilot = pilotRateFromChanels(chanels);
+
+                // if(euler.getMaxDegExeptYaw() > 25 || abs(pilot.x) > 90 || abs(pilot.y) > 90) {
+                //     levelInfluence = 0;
+                //     pilotRot = gyroRot.clone();
+                //     levelInfluencingRate = false;
+                //     // levelRollPID.reset();
+                //     // levelPitchPID.reset();
+                // }
+
+                // rateRollPID.integrator  = levelRollPID.compute (euler.getRoll()  * RAD_TO_DEG, 0, ins->getRollRate())  * levelInfluence + rateRollPID.integrator * (1 - levelInfluence);
+                // ratePitchPID.integrator = levelPitchPID.compute(euler.getPitch() * RAD_TO_DEG, 0, ins->getPitchRate()) * levelInfluence + rateRollPID.integrator * (1 - levelInfluence);
+
                 float desRollRate  = stickToRate(chanels.roll,  rollRate.getRC(),  rollRate.getSuper(),  rollRate.getRCExpo());
                 float desPitchRate = stickToRate(chanels.pitch, pitchRate.getRC(), pitchRate.getSuper(), pitchRate.getRCExpo());
-                rollRateAdjust  = rateRollPID.compute (ins->getRollRate(),  desRollRate);
-                pitchRateAdjust = ratePitchPID.compute(ins->getPitchRate(), desPitchRate);
+                rollRateAdjust  = rateRollPID.compute (ins->getRollRate(),  desRollRate) ;// * (1 - levelInfluence);
+                pitchRateAdjust = ratePitchPID.compute(ins->getPitchRate(), desPitchRate);// * (1 - levelInfluence);
                 yawRateAdjust   = rateYawPID.compute  (ins->getYawRate(),   desYawRate);
+
+                
+
+                // rollRateAdjust  += levelRollPID.compute (euler.getRoll()  * RAD_TO_DEG, 0, ins->getRollRate())  * levelInfluence;
+                // pitchRateAdjust += levelPitchPID.compute(euler.getPitch() * RAD_TO_DEG, 0, ins->getPitchRate()) * levelInfluence;
+                // yawRateAdjust   += levelYawPID.compute  (euler.getYaw()   * RAD_TO_DEG, 0, ins->getYawRate())   * levelInfluence;
                 break;
             }
             default: {}
@@ -311,6 +369,20 @@ public:
         mBR->handle();
 
         lastDesYawRate = desYawRate;
+    }
+
+    void sendQ(Quaternion& q) {
+        if(millis() % 100 != 0) {
+            return;
+        }
+        Serial.print("FC_S Q;W;");
+        Serial.println(q.w);
+        Serial.print("FC_S Q;X;");
+        Serial.println(q.x);
+        Serial.print("FC_S Q;Y;");
+        Serial.println(q.y);
+        Serial.print("FC_S Q;Z;");
+        Serial.println(q.z);
     }
 
     /**
@@ -495,9 +567,15 @@ private:
      * Desmos.com: f\left(x\right)=\left(200\cdot\ \left(\left(x^{4}\ \cdot\ c\right)\ +\ x\ \cdot\ \left(1-c\right)\right)\ \cdot\ a\right)\cdot\left(\frac{1}{\left(1-\left(x\cdot b\right)\right)}\right)\left\{-1<x<1\right\}
      */
     float stickToRate(float x, float rc, float super, float expo) {
-        float mul = x > 0 ? 1 : -1;
-        x = abs(x);
+        float mul = x > 0.0 ? 1.0 : -1.0;
+        if(x < 0) {
+            x = -x;
+        }
         return (200.0f * ((pow(x, 4.0f) * expo) + x * (1.0f - expo)) * rc) * (1.0f / (1.0f - (x * super))) * mul;
+    }
+
+    float stickToRate(float x, Vec3& rates) {
+        return stickToRate(x, rates.x, rates.y, rates.z);
     }
 
     /**
@@ -581,12 +659,11 @@ private:
      */
     void handleArm() {
         if(!armed) {
-            if(flightMode == FlightMode::wayPoint) return; // disallow to arm in waypoint mode
             if(crsf->isRcConnected() && crsf->timeSinceRcConnect() > 1000) {
                 if(!rcWasDisarmed && chanels.aux1 <= 0.9) {
                     rcWasDisarmed = true;
                 } else if(rcWasDisarmed && chanels.aux1 > 0.9) {
-                    if(!ins->isAngleSmallerThanDeg(10) && flightMode <= FlightMode::level) {
+                    if((!ins->isAngleSmallerThanDeg(15) && flightMode >= FlightMode::level) || flightMode == FlightMode::wayPoint) {
                         rcWasDisarmed = false;
                     }
                     if(chanels.throttle > 0.1) {
@@ -628,10 +705,10 @@ private:
         crop(pitchRateAdjust, maxRateChange);
 
         // Mixer
-        float mFLThrottle = throttle + rollRateAdjust - pitchRateAdjust + (propsIn ? +yawRateAdjust : -yawRateAdjust);
-        float mFRThrottle = throttle - rollRateAdjust - pitchRateAdjust + (propsIn ? -yawRateAdjust : +yawRateAdjust);
-        float mBLThrottle = throttle + rollRateAdjust + pitchRateAdjust + (propsIn ? -yawRateAdjust : +yawRateAdjust);
-        float mBRThrottle = throttle - rollRateAdjust + pitchRateAdjust + (propsIn ? +yawRateAdjust : -yawRateAdjust);
+        float mFLThrottle = throttle + rollRateAdjust - pitchRateAdjust + (propsIn ? -yawRateAdjust : +yawRateAdjust);
+        float mFRThrottle = throttle - rollRateAdjust - pitchRateAdjust + (propsIn ? +yawRateAdjust : -yawRateAdjust);
+        float mBLThrottle = throttle + rollRateAdjust + pitchRateAdjust + (propsIn ? +yawRateAdjust : -yawRateAdjust);
+        float mBRThrottle = throttle - rollRateAdjust + pitchRateAdjust + (propsIn ? -yawRateAdjust : +yawRateAdjust);
 
         // Keeping controll authority
         float minThrottle = min(mFLThrottle, min(mFRThrottle, min(mBLThrottle, mBRThrottle)));
@@ -677,13 +754,14 @@ private:
             airborne = false;
         }
         // I term relax
-        rateRollPID.lockI   = abs(ins->getRollRate()) > iRelaxMinRate;
-        ratePitchPID.lockI  = abs(ins->getPitchRate()) > iRelaxMinRate;
-        rateYawPID.lockI    = abs(ins->getYawRate()) > iRelaxMinRate;
+        Vec3 pilot = pilotRateFromChanels(chanels);
+        rateRollPID.lockI   = abs(ins->getRollRate())  > iRelaxMinRate || abs(pilot.x) > iRelaxMinRate;
+        ratePitchPID.lockI  = abs(ins->getPitchRate()) > iRelaxMinRate || abs(pilot.y) > iRelaxMinRate;
+        rateYawPID.lockI    = abs(ins->getYawRate())   > iRelaxMinRate || abs(pilot.z) > iRelaxMinRate;
 
-        levelRollPID.lockI   = abs(ins->getRollRate()) > iRelaxMinRate;
+        levelRollPID.lockI   = abs(ins->getRollRate())  > iRelaxMinRate;
         levelPitchPID.lockI  = abs(ins->getPitchRate()) > iRelaxMinRate;
-        levelYawPID.lockI    = abs(ins->getYawRate()) > iRelaxMinRate;
+        levelYawPID.lockI    = abs(ins->getYawRate())   > iRelaxMinRate || abs(pilot.z) > iRelaxMinRate;
 
         rateRollPID.iEnabled   = airborne;
         ratePitchPID.iEnabled  = airborne;
@@ -734,6 +812,8 @@ private:
         velPIDx.reset();
         velPIDy.reset();
         ins->resetAltitude();
+        gyroRot = Quaternion();
+        pilotRot = Quaternion();
     }
 
     /**
@@ -741,6 +821,7 @@ private:
      * 
      */
     void handleAntiGravity() {
+        isAntiGravity = false;
         if(!useAntiGravity) return;
         double lpf = 0.005; // takes appprox 460 cycles until setpoint is reached
         static double throttleFiltered = 0;
@@ -748,18 +829,26 @@ private:
         static uint32_t lastAg = 0;
         double deltaT = (micros() - lastAntiGravityUs) * 460 / 1000000.0;
         throttleFiltered = throttleFiltered * (1 - lpf) + chanels.throttle * lpf;
-        if(abs(chanels.throttle - throttleFiltered) / deltaT > 2) { // percent movement per 100ms
+        if(abs(chanels.throttle - throttleFiltered) / deltaT > 1.5) { // percent movement per 100ms
             lastAg = millis();
         }
         #define log(x) if(millis() % 10 == 0) {Serial.println(x);}
         // log(millis() < lastAg + 10);
         double boost = millis() < lastAg + 1 ? antiGravityMul : 1;
+        isAntiGravity = millis() < lastAg + 1;
 
         rateRollPID.iBoost  = boost;
-        ratePitchPID.iBoost  = boost;
-        rateYawPID.iBoost  = boost;
+        ratePitchPID.iBoost = boost;
+        rateYawPID.iBoost   = boost;
 
         lastAntiGravityUs = micros();
+    }
+
+    Vec3 pilotRateFromChanels(CRSF_TxChanels_Converted chanels) {
+        return Vec3(
+            stickToRate(chanels.roll, yawRate),
+            stickToRate(chanels.pitch, pitchRate),
+            stickToRate(chanels.yaw, yawRate));
     }
 
     /**

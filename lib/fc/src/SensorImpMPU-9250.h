@@ -14,6 +14,7 @@
 #include <MPU9250.h>
 #include <error.h>
 #include <maths.h>
+#include <lpf.h>
 
 #include <Wire.h>
 #include <SPI.h>
@@ -94,7 +95,10 @@ public:
 
     MechaQMC5883 qmc; // I2C Address: 0x0D
 
-    MPU9250Sensor() : mpu9250(SPI, 10), bmp(BMP_CS) {}
+    
+
+    MPU9250Sensor() : mpu9250(SPI, 10),
+        bmp(BMP_CS) {}
     
     /**
      * Begin function can becalled as many times as wanted
@@ -189,7 +193,7 @@ public:
             mag.error  = Error::NO_ERROR;
             Serial.println("Succsessfully initiated IMU9250");
         }
-        mag.lpf = 0.1;
+        // mag.lpf = 0.1;
     }
 
     void setAccCal(Vec3 gVecOffset, Vec3 scale) {
@@ -373,7 +377,9 @@ public:
          */
         int analog = analogRead(22);
         vMeasured = (analog * 3.3) / 1023.0;
-        bat.vBat = bat.vBat * (1 - batLpf) + batLpf * vMeasured * vBatMul; // lpf
+        float vConverted = (batOffset + vMeasured) * vBatMul;
+
+        bat.vBat = bat.vBat * (1 - batLpf) + batLpf * vConverted; // lpf
 
         bat.cellCount = max(bat.cellCount, (int) ceil((bat.vBat - 0.2) / 4.2));
         if(bat.cellCount == 5) bat.cellCount = 6; // skip 5s as unusual
@@ -507,9 +513,8 @@ public:
             }
         }
         magOffset = (max + min) * (-0.5);
-        min += magOffset;
         max += magOffset;
-        Vec3 targetRadius = (max.x + max.y + max.z) / 3.0;
+        Vec3 targetRadius = Vec3((max.x + max.y + max.z) / 3.0);
         magScale = targetRadius / max;
     }
 

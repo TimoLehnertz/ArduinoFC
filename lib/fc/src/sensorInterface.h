@@ -12,6 +12,7 @@
 #include <error.h>
 #include <flightModes.h>
 #include <maths.h>
+#include <lpf.h>
 
 /**
  * General data type for all sensors on board
@@ -34,10 +35,12 @@ struct Sensor {
 };
 
 struct Vec3Sensor : public Sensor {
+public:
     float x, y, z, lastX, lastY, lastZ;
     int similarCount;
     Vec3 last;
-    float lpf = 1.0f;
+    // float lpf = 1.0f;
+    
 
     Vec3Sensor(FlightMode::FlightMode_t minFlightMode) : Sensor(minFlightMode), similarCount(0) {}
 
@@ -46,12 +49,23 @@ struct Vec3Sensor : public Sensor {
     }
 
     void update(float x1, float y1, float z1) {
+        Vec3 vec(x1, y1, z1);
         if(x1 != x || y1 != y || z1 != z) {
             lastChange = micros();
-            x = x1 * lpf + (1.0 - lpf) * last.x;
-            y = y1 * lpf + (1.0 - lpf) * last.y;
-            z = z1 * lpf + (1.0 - lpf) * last.z;
-            last = Vec3(x, y, z);
+            for (size_t i = 0; i < 1; i++) {
+                last = lpfs[i].update(vec);
+            }
+            
+            x = last.x;
+            y = last.y;
+            z = last.z;
+
+            // x = x1 * lpf + (1.0 - lpf) * last.x;
+            // y = y1 * lpf + (1.0 - lpf) * last.y;
+            // z = z1 * lpf + (1.0 - lpf) * last.z;
+            // last = Vec3(x, y, z);
+
+
         }
     }
 
@@ -81,6 +95,15 @@ struct Vec3Sensor : public Sensor {
             error = Error::NO_ERROR;
         }
     }
+
+    void setLpf(int filter, double deltaT, int freq) {
+        lpfs[filter].reconfigureFilter(deltaT, freq);
+    }
+    int getLpfFreq(int filter) {
+        return lpfs[filter].getCutoffFreq();
+    }
+private:
+    LowPassFilterVec3 lpfs[1];
 };
 
 struct Accelerometer : public Vec3Sensor {
@@ -232,7 +255,8 @@ public:
     Battery bat;
 
     float batLpf = 0.0001;
-    float vBatMul = 11.8;
+    float batOffset = -0.105;
+    float vBatMul = 13.3;
 
     float accLpf = 1.0f;
     float gyroLpf = 1.0f;

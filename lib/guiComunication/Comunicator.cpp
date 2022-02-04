@@ -75,6 +75,11 @@ void Comunicator::handleLED() {
   if(!useLeds) return;
   if(millis() - (1000 / ledFreq) > lastLED) {
     pixels->clear();
+    uint32_t color1 = pixels->Color(fc->isAntiGravity * 100, fc->isAntiGravity * 100, fc->isAntiGravity * 100);
+    pixels->fill(color1, 0, 3);
+    pixels->show();
+    lastLED = millis();
+    return;
     // if(fc->isArmed()) {
       // double angle = min(ins->getMaxAngleDeg(), 5);
       double angle = angleFromCoordinate(ins->sensors->gps.lat, ins->sensors->gps.lng, ins->complementaryFilter.centerLat, ins->complementaryFilter.centerLng);
@@ -226,11 +231,11 @@ void Comunicator::handleMsp() {
       case MSP_PID: {
         uint8_t payload[30];
         if(fc->flightMode == FlightMode::rate) {
-          payload[0] = fc->rateRollPID.p * 10000.0;
-          payload[1] = fc->rateRollPID.i * 10000.0;
-          payload[2] = fc->rateRollPID.d * 10000.0;
+          payload[0] = fc->rateRollPID.p  * 10000.0;
+          payload[1] = fc->rateRollPID.i  * 1000.0;
+          payload[2] = fc->rateRollPID.d  * 10000.0;
           payload[3] = fc->ratePitchPID.p * 10000.0;
-          payload[4] = fc->ratePitchPID.i * 10000.0;
+          payload[4] = fc->ratePitchPID.i * 1000.0;
           payload[5] = fc->ratePitchPID.d * 10000.0;
         } else if(fc->flightMode == FlightMode::level) {
           payload[0] = fc->levelRollPID.p * 10000.0;
@@ -255,10 +260,18 @@ void Comunicator::handleMsp() {
           payload[3] = 0;
           payload[4] = 0;
           payload[5] = 0;
+        } else {
+          payload[0] = 0;
+          payload[1] = 0;
+          payload[2] = 0;
+
+          payload[3] = 0;
+          payload[4] = 0;
+          payload[5] = 0;
         }
 
         payload[6] = fc->rateYawPID.p * 10000.0;
-        payload[7] = fc->rateYawPID.i * 10000.0;
+        payload[7] = fc->rateYawPID.i * 1000.0;
         payload[8] = fc->rateYawPID.d * 10000.0;
         
         msp.send(MSP_PID, payload, 30);
@@ -272,10 +285,10 @@ void Comunicator::handleMsp() {
 
         if(fc->flightMode == FlightMode::rate) {
           fc->rateRollPID.p = mspBuff[0] / 10000.0;
-          fc->rateRollPID.i = mspBuff[1] / 10000.0;
+          fc->rateRollPID.i = mspBuff[1] / 1000.0;
           fc->rateRollPID.d = mspBuff[2] / 10000.0;
           fc->ratePitchPID.p = mspBuff[3] / 10000.0;
-          fc->ratePitchPID.i = mspBuff[4] / 10000.0;
+          fc->ratePitchPID.i = mspBuff[4] / 1000.0;
           fc->ratePitchPID.d = mspBuff[5] / 10000.0;
         } else if(fc->flightMode == FlightMode::level) {
           fc->levelRollPID.p = mspBuff[0] / 10000.0;
@@ -298,21 +311,30 @@ void Comunicator::handleMsp() {
           fc->velPIDy.d = mspBuff[2] / 10000.0;
         }
 
-
         fc->rateYawPID.p = mspBuff[6] / 10000.0;
-        fc->rateYawPID.i = mspBuff[7] / 10000.0;
+        fc->rateYawPID.i = mspBuff[7] / 1000.0;
         fc->rateYawPID.d = mspBuff[8] / 10000.0;
         break;
       }
       case MSP_SET_PID_ADVANCED: {
         Serial.println("Setting PID advanced:");
-        for (size_t i = 0; i < mSize; i++) {
-          Serial.println(mspBuff[i]);
+        // for (size_t i = 0; i < mSize; i++) {
+        //   Serial.println(mspBuff[i]);
+        // }
+        if(fc->flightMode == FlightMode::rate) {
+          fc->rateRollPID.dlpf  = mspBuff[32] / 100.0;
+          fc->ratePitchPID.dlpf = mspBuff[34] / 100.0;
+          fc->rateYawPID.dlpf   = mspBuff[36] / 100.0;
+        } else if(fc->flightMode == FlightMode::level) {
+          fc->levelRollPID.dlpf  = mspBuff[32] / 100.0;
+          fc->levelPitchPID.dlpf = mspBuff[34] / 100.0;
+          fc->levelYawPID.dlpf   = mspBuff[36] / 100.0;
         }
-        fc->rateRollPID.dlpf  = mspBuff[32] / 10000.0;
-        fc->ratePitchPID.dlpf = mspBuff[34] / 10000.0;
-        fc->rateYawPID.dlpf   = mspBuff[36] / 10000.0;
-        fc->antiGravityMul = mspBuff[21] / 100.0;
+        fc->antiGravityMul = mspBuff[21] / 10.0;
+        if(fc->antiGravityMul >= 10) {
+          fc->antiGravityMul = 0;
+        }
+        // Serial.println(mspBuff[21]);
         break;
       }
       case MSP_PID_ADVANCED: {
@@ -321,11 +343,20 @@ void Comunicator::handleMsp() {
         {
           payload[i] = 0;
         }
-        
-        payload[32] = fc->rateRollPID.dlpf * 10000.0;
-        payload[34] = fc->ratePitchPID.dlpf * 10000.0;
-        payload[36] = fc->rateYawPID.dlpf * 10000.0;
-        payload[21] = fc->antiGravityMul * 100.0;
+        if(fc->flightMode == FlightMode::rate) {
+          payload[32] = fc->rateRollPID.dlpf * 100.0;
+          payload[34] = fc->ratePitchPID.dlpf * 100.0;
+          payload[36] = fc->rateYawPID.dlpf * 100.0;
+        } else if(fc->flightMode == FlightMode::level) {
+          payload[32] = fc->levelRollPID.dlpf * 100.0;
+          payload[34] = fc->levelPitchPID.dlpf * 100.0;
+          payload[36] = fc->levelYawPID.dlpf * 100.0;
+        } else {
+          payload[32] = 0;
+          payload[34] = 0;
+          payload[36] = 0;
+        }
+        payload[21] = round(fc->antiGravityMul * 10.0);
         msp.send(MSP_PID_ADVANCED, payload, 47);
         break;
       }
@@ -334,7 +365,7 @@ void Comunicator::handleMsp() {
         if(useVCell) {
           payload[0] = (uint8_t) ((int) (sensors->bat.vCell * 10));
         } else {
-          payload[0] = (uint8_t) ((int) (sensors->bat.vBat * 10));
+          payload[0] = (uint8_t) ((int) round(sensors->bat.vBat * 10));
         }
         msp.send(MSP_ANALOG, payload, 7);
         break;
@@ -504,7 +535,7 @@ void Comunicator::postTelemetry() {
     // postSensorData("RateAdj", "Yaw", fc->yawRateAdjust);
     postSensorData("Rate PID Roll", fc->rateRollPID);
     postSensorData("Rate PID Pitch", fc->ratePitchPID);
-    // // postSensorData("Rate PID Yaw", fc->rateYawPID);
+    postSensorData("Rate PID Yaw", fc->rateYawPID);
     // postSensorData("Level PID Roll", fc->levelRollPID);
     // // postSensorData("Level PID Pitch", fc->levelPitchPID);
     // postSensorData("Altitude PID", fc->altitudePID);
@@ -635,10 +666,10 @@ void Comunicator::processSerialLine() {
       postResponse(uid, sensors->getGyroScale());
     }
     if(strncmp("ACC_LPF", command,7) == 0) {
-      postResponse(uid, sensors->acc.lpf);
+      postResponse(uid, sensors->acc.getLpfFreq(0));
     }
     if(strncmp("GYRO_LPF", command,7) == 0) {
-      postResponse(uid, sensors->gyro.lpf);
+      postResponse(uid, sensors->gyro.getLpfFreq(0));
     }
     if(strncmp("COMPLEMENTARY_ACC_INF", command, 21) == 0) {
       postResponse(uid, ins->complementaryFilter.accInfluence);
@@ -675,6 +706,12 @@ void Comunicator::processSerialLine() {
     }
     if(strncmp("BAT_LPF", command, 7) == 0) {
       postResponse(uid, sensors->batLpf);
+    }
+    if(strncmp("BAT_OFFSET", command, 10) == 0) {
+      postResponse(uid, sensors->batOffset);
+    }
+    if(strncmp("BAT_MUL", command, 7) == 0) {
+      postResponse(uid, sensors->vBatMul);
     }
     if(strncmp("OVERWRITE_MOTORS", command, 16) == 0) {
       postResponse(uid, motorOverwrite);
@@ -937,11 +974,11 @@ void Comunicator::processSerialLine() {
     }
     if(strncmp("ACC_LPF", command, 7) == 0) {
       postResponse(uid, value);
-      sensors->acc.lpf = atof(value);
+      sensors->acc.setLpf(0, 1.0 / loopFreqRate, atoi(value));
     }
     if(strncmp("GYRO_LPF", command, 8) == 0) {
       postResponse(uid, value);
-      sensors->gyro.lpf = atof(value);
+      sensors->gyro.setLpf(0, 1.0 / loopFreqRate, atoi(value));
     }
     if(strncmp("COMPLEMENTARY_ACC_INF", command, 21) == 0) {
       postResponse(uid, value);
@@ -994,6 +1031,14 @@ void Comunicator::processSerialLine() {
     if(strncmp("BAT_LPF", command, 7) == 0) {
       postResponse(uid, value);
       sensors->batLpf = atof(value);
+    }
+    if(strncmp("BAT_OFFSET", command, 10) == 0) {
+      postResponse(uid, value);
+      sensors->batOffset = atof(value);
+    }
+    if(strncmp("BAT_MUL", command, 7) == 0) {
+      postResponse(uid, value);
+      sensors->vBatMul = atof(value);
     }
     if(strncmp("OVERWRITE_MOTORS", command, 16) == 0) {
       postResponse(uid, value);
@@ -1384,13 +1429,14 @@ void Comunicator::saveEEPROM() {
 
   Storage::write(FloatValues::accInsInf, ins->complementaryFilter.accInfluence);
   Storage::write(FloatValues::magInsInf, ins->complementaryFilter.magInfluence);
-  Storage::write(FloatValues::accLPF, sensors->acc.lpf);
-  Storage::write(FloatValues::gyroLPF, sensors->gyro.lpf);
+  Storage::write(FloatValues::accLPF, sensors->acc.getLpfFreq(0));
+  Storage::write(FloatValues::gyroLPF, sensors->gyro.getLpfFreq(0));
 
   Storage::write(FloatValues::insSensorFusion, ins->getFusionAlgorythm());
   Storage::write(FloatValues::magZOffset, ins->getMagZOffset());
 
   Storage::write(FloatValues::batLpf, sensors->batLpf);
+  Storage::write(FloatValues::batOffset, sensors->batOffset);
   Storage::write(FloatValues::batMul, sensors->vBatMul);
   Storage::write(BoolValues::useVCell, useCellVoltage);
 
@@ -1436,6 +1482,9 @@ void Comunicator::readEEPROM() {
   Serial.println("Reading from EEPROM");
   Serial2.println("Reading from EEPROM");
 
+  loopFreqRate = Storage::read(FloatValues::loopFreqRate);
+  loopFreqLevel = Storage::read(FloatValues::loopFreqLevel);
+
   // Sensor Interface calibration
   sensors->setAccCal (Storage::read(Vec3Values::accOffset), Storage::read(Vec3Values::accScale));
   sensors->setGyroCal(Storage::read(Vec3Values::gyroOffset), Storage::read(Vec3Values::gyroScale));
@@ -1443,13 +1492,17 @@ void Comunicator::readEEPROM() {
 
   ins->complementaryFilter.accInfluence = Storage::read(FloatValues::accInsInf);
   ins->complementaryFilter.magInfluence = Storage::read(FloatValues::magInsInf);
-  sensors->acc.lpf = Storage::read(FloatValues::accLPF);
-  sensors->gyro.lpf = Storage::read(FloatValues::gyroLPF);
+  // sensors->acc.lpf = Storage::read(FloatValues::accLPF);
+  // sensors->gyro.lpf = Storage::read(FloatValues::gyroLPF);
+
+  sensors->acc.setLpf(0, 1.0 / loopFreqRate,  Storage::read(FloatValues::accLPF));
+  sensors->gyro.setLpf(0, 1.0 / loopFreqRate, Storage::read(FloatValues::gyroLPF));
 
   ins->setFusionAlgorythm(SensorFusion::FusionAlgorythm(Storage::read(FloatValues::insSensorFusion)));
   ins->setMagZOffset(Storage::read(FloatValues::magZOffset));
 
   sensors->batLpf = Storage::read(FloatValues::batLpf);
+  sensors->batOffset = Storage::read(FloatValues::batOffset);
   sensors->vBatMul = Storage::read(FloatValues::batMul);
 
   fc->propsIn = Storage::read(BoolValues::propsIn);
@@ -1491,8 +1544,6 @@ void Comunicator::readEEPROM() {
   fc->throttleMul4S =  Storage::read(FloatValues::throttleMul4S);
   fc->throttleMul6S =  Storage::read(FloatValues::throttleMul6S);
 
-  loopFreqRate = Storage::read(FloatValues::loopFreqRate);
-  loopFreqLevel = Storage::read(FloatValues::loopFreqLevel);
   fc->iRelaxMinRate = Storage::read(FloatValues::iRelaxMinRate);
 
   fc->antiGravityMul = Storage::read(FloatValues::antiGravityMul);

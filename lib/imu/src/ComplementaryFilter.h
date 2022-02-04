@@ -120,7 +120,9 @@ private:
         double roll = rot.toEulerZYX().x;
         float minG = 0.5;
         float maxG = 1.5;
-        if(pitch > -limitRad && pitch < limitRad && roll > -limitRad && roll < limitRad && g > minG && g < maxG) { //check if movement is too strong or gimbal lock could interfere
+        if(g > minG && g < maxG) { //check if movement is too strong or gimbal lock could interfere
+        // if(acc.z > 0 && g > minG && g < maxG) { //check if movement is too strong or gimbal lock could interfere
+        // if(pitch > -limitRad && pitch < limitRad && roll > -limitRad && roll < limitRad && g > minG && g < maxG) { //check if movement is too strong or gimbal lock could interfere
             Vec3 accCorrected = acc;
             if(useDroneOptimization && !headDown) {
                 accCorrected = Vec3(acc.x, acc.y, sqrt(-pow(acc.x, 2) -pow(acc.y, 2) + 1)); // calculating z assuming that G-Force is equal to 1 => eliminating propeller lift
