@@ -114,10 +114,10 @@ private:
     void processAcc(const Vec3 acc, const uint32_t deltaT) {
         float elapsedSeconds = deltaT / 1000000.0f;
         //rotation
-        double limitRad = 70 * DEG_TO_RAD;
+        // double limitRad = 70 * DEG_TO_RAD;
         double g = acc.getLength();
-        double pitch = rot.toEulerZYX().y;
-        double roll = rot.toEulerZYX().x;
+        // double pitch = rot.toEulerZYX().y;
+        // double roll = rot.toEulerZYX().x;
         float minG = 0.5;
         float maxG = 1.5;
         if(g > minG && g < maxG) { //check if movement is too strong or gimbal lock could interfere

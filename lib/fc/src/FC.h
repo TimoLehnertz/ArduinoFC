@@ -72,7 +72,7 @@
 #define VEL_PID_MAX                 20.00000f
 
 
-#define I_RELAX_MIN_RATE            15//min rate at wich i gets disabled
+#define I_RELAX_MIN_RATE            12//min rate at wich i gets disabled
 
 #define ANGLE_MODE_MAX_ANGLE        20//deg
 
@@ -210,15 +210,11 @@ public:
         velPIDx         (VEL_PID_P,         VEL_PID_I,      VEL_PID_D,      VEL_PID_D_LPF,      VEL_PID_MAX),
         velPIDy         (VEL_PID_P,         VEL_PID_I,      VEL_PID_D,      VEL_PID_D_LPF,      VEL_PID_MAX),
         crsf(crsf),
-        mFL(mFL), mFR(mFR), mBL(mBL), mBR(mBR),
-        gyroRot(), pilotRot() {
-        }
+        gyroRot(), pilotRot(),
+        mFL(mFL), mFR(mFR), mBL(mBL), mBR(mBR) {}
 
     void begin() {
-        mFL->begin();
-        mFR->begin();
-        mBL->begin();
-        mBR->begin();
+        
     }
 
     double lastDesYawRate = 0;
@@ -700,7 +696,10 @@ private:
         //     arm();
         // }
 
-        if(isArmed() && chanels.aux1 < 0.9) {
+        // if(isArmed() && chanels.aux1 < 0.9) {
+        //     disarm();
+        // }
+        if(chanels.aux1 < 0.9) {
             disarm();
         }
     }
@@ -767,13 +766,16 @@ private:
         if(!armed) {
             airborne = false;
         }
-        airborne = true;
+        // airborne = true;
         // I term relax
         Vec3 pilot = pilotRateFromChanels(chanels);
         if(flightMode == FlightMode::rate) {
-            rateRollPID.lockI   = abs(ins->getRollRate())  > iRelaxMinRate || abs(pilot.x) > iRelaxMinRate;
-            ratePitchPID.lockI  = abs(ins->getPitchRate()) > iRelaxMinRate || abs(pilot.y) > iRelaxMinRate;
-            rateYawPID.lockI    = abs(ins->getYawRate())   > iRelaxMinRate || abs(pilot.z) > iRelaxMinRate;
+            rateRollPID.lockI   = abs(pilot.x) > iRelaxMinRate;
+            ratePitchPID.lockI  = abs(pilot.y) > iRelaxMinRate;
+            rateYawPID.lockI    = abs(pilot.z) > iRelaxMinRate;
+            // rateRollPID.lockI   = abs(ins->getRollRate())  > iRelaxMinRate || abs(pilot.x) > iRelaxMinRate;
+            // ratePitchPID.lockI  = abs(ins->getPitchRate()) > iRelaxMinRate || abs(pilot.y) > iRelaxMinRate;
+            // rateYawPID.lockI    = abs(ins->getYawRate())   > iRelaxMinRate || abs(pilot.z) > iRelaxMinRate;
         }
 
         levelRollPID.lockI   = abs(ins->getRollRate())  > iRelaxMinRate;

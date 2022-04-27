@@ -10,6 +10,7 @@
  */
 #include <Arduino.h>
 #include <OneShotMotor.h>
+#include <DShotMotor.h>
 #include <SensorImpMPU-9250.h>
 #include <crossfire.h>
 #include <FC.h>
@@ -26,10 +27,15 @@ INS ins(&sensors);// Inertial navigation system to convert sensor reading into p
 Crossfire crsf(CRSF_SERIAL_PORT); // Crossfire implementation to get radio commands from pilot and send telemetry
 
 // One shot implementations to talk to ESCs
-OneShotMotor mFL(MOTOR_1); 
-OneShotMotor mFR(MOTOR_2);
-OneShotMotor mBL(MOTOR_3);
-OneShotMotor mBR(MOTOR_4);
+// OneShotMotor mFL;
+// OneShotMotor mFR;
+// OneShotMotor mBL;
+// OneShotMotor mBR;
+
+DShotMotor mFL; 
+DShotMotor mFR;
+DShotMotor mBL;
+DShotMotor mBR;
 
 FC fc(&ins, &mFL, &mFR, &mBL, &mBR, &crsf); // Flight controller
 
@@ -61,11 +67,16 @@ void setup() {
   Serial.begin (921600);// Gui over usb
   Serial2.begin(115200);// Gui over air(not used)
   Serial4.begin(115200);// DJI MSP
-  delay(2000);
+  // delay(2000);
   Storage::begin();     // EEPROM storage to save settings
   com.begin();
   crsf.begin();
   sensors.begin();      // Initiate all sensors (takes some seconds)
+  mFL.begin(MOTOR_1);
+  mFR.begin(MOTOR_2);
+  mBL.begin(MOTOR_3);
+  mBR.begin(MOTOR_4);
+  // mFL.arm();
   fc.begin();
   com.readEEPROM();     // Read Settings from EEPROM
   ins.begin();
@@ -77,6 +88,7 @@ void loop() {
   uint64_t now = micros();
   com.loopStart = now;// timing statistics available in GUI
   crsf.handle(); // talk to radio controller
+  Serial.println(crsf.getChanelsCoverted().throttle);
   com.crsfTime = micros();
   sensors.handle(); // schedule and get sensor readings
   com.sensorsTime = micros();

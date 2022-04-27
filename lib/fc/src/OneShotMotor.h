@@ -18,12 +18,12 @@
 class OneShotTimer {
 public:
     IntervalTimer timer;
-    int pin;
+    uint8_t pin;
     volatile float speed;
     int chanel;
     volatile int phase;
 
-    OneShotTimer(int pin, int chanel) : pin(pin), chanel(chanel), phase(0) {}
+    OneShotTimer(uint8_t pin, int chanel) : pin(pin), chanel(chanel), phase(0) {}
 };
 
 class OneShotMotor;
@@ -35,15 +35,14 @@ void changeOneShotPin(int chanel, int pin);
 
 class OneShotMotor : public Motor {
 public:
-    OneShotMotor(int pin) : Motor(pin) {};
+    OneShotMotor() {};
 
-    void begin() {
+    void begin(uint8_t pin) {
         oneShotChanel = registerOneShotMotor(this);
-        // oneShotChanel = -1;
         pinMode(pin, OUTPUT);
     }
 
-    void end() {}
+
 
     void handle() {
         // if(!armed && arming && millis() - armStart > 2000) {
@@ -51,6 +50,10 @@ public:
         //     arming = false;
         // }
     }
+
+    void end() {}
+
+    void sendComand(uint8_t cmd, uint8_t cycles) {}
 
     void writeRaw(float percentage) {
         updateOneShot(oneShotChanel, percentage);
@@ -76,9 +79,9 @@ public:
     // volatile float speed = 0.0f;
     float lastSpeed = 0.0f;
 
-    void setPin(int pin) {
+    void setPin(uint8_t pin) {
         if(pin < 2 || pin > 5) {
-            pin = 1000;
+            pin = 255;
             return;
         }
         digitalWrite(this->pin, LOW);
@@ -87,8 +90,14 @@ public:
         this->pin = pin;
     }
 
+    uint8_t getPin() {
+        return pin;
+    }
+
 private:
     // Servo servo;
+    bool armed = false;
+    uint8_t pin;
     bool arming = false;
 
     int minPWM = 1000;
@@ -144,7 +153,7 @@ int registerOneShotMotor(OneShotMotor* m) {
     if(timerCount == 0) {
         beginOneShot();
     }
-    OneShotTimer* timer = new OneShotTimer(m->pin, timerCount);
+    OneShotTimer* timer = new OneShotTimer(m->getPin(), timerCount);
 
     timer->speed = 0;
     int initDelay = 10;

@@ -22,7 +22,7 @@
 #include <Adafruit_BMP280.h>
 #include <MechaQMC5883.h>
 
-#include <Adafruit_MPU6050.h>
+// #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 // #include <Wire.h>
@@ -95,8 +95,8 @@ public:
     double ultraSonicHz = 100;
     uint64_t lastUltraSonic = 0;
 
-    // MPU9250 mpu9250;
-    Adafruit_MPU6050 mpu6050;
+    MPU9250 mpu9250;
+    // Adafruit_MPU6050 mpu6050;
     Adafruit_BMP280 bmp;
 
     MechaQMC5883 qmc; // I2C Address: 0x0D
@@ -105,7 +105,7 @@ public:
 
     MPU9250Sensor() :
         // mpu9250(Wire, 0x68),
-        // mpu9250(SPI, 10),
+        mpu9250(SPI, 10),
         bmp(BMP_CS) {
         }
     
@@ -116,15 +116,15 @@ public:
     void begin() {
         initMPU9250();
 
-        // initBmp280();
+        initBmp280();
 
-        // initGPS();
+        initGPS();
 
-        // initBattery();
+        initBattery();
         
-        // initMag();
+        initMag();
 
-        // initUltraSonic();
+        initUltraSonic();
     }
 
     void initUltraSonic() {
@@ -178,39 +178,40 @@ public:
     }
 
     void initMPU9250() {
-        // int status = mpu9250.begin();
-        mpu6050.begin();
-        mpu6050.setGyroRange(MPU6050_RANGE_1000_DEG);
-        Wire.setClock(1000000);
-        // if (status < 0) {
-        //     if(!mpuErrorPrinted) {
-        //         Serial.println("MPU9250 initialization unsuccessful");
-        //         Serial.println("Check MPU9250 wiring");
-        //         Serial.print("Status: ");
-        //         Serial.println(status);
-        //         mpuErrorPrinted = true;
-        //     }
-        //     acc.error  = Error::CRITICAL_ERROR;
-        //     gyro.error = Error::CRITICAL_ERROR;
-        //     mag.error  = Error::CRITICAL_ERROR;
+        // mpu6050.begin();
+        // mpu6050.setGyroRange(MPU6050_RANGE_1000_DEG);
+        // Wire.setClock(1000000);
 
-        //     mpu9250.setGyroRange(mpu9250.GYRO_RANGE_1000DPS);
-        //     mpu9250.setAccelRange(mpu9250.ACCEL_RANGE_8G);
-        //     mpu9250.setSrd(0); //sets gyro and accel read to 1khz, magnetometer read to 100hz
-        // } else {
-        //     mpu9250.setGyroRange(mpu9250.GYRO_RANGE_1000DPS);
-        //     mpu9250.setAccelRange(mpu9250.ACCEL_RANGE_8G);
-        //     mpu9250.setMagCalX(0, 1);
-        //     mpu9250.setMagCalY(0, 1);
-        //     mpu9250.setMagCalZ(0, 1);
-        //     mpu9250.setSrd(0); //sets gyro and accel read to 1khz, magnetometer read to 100hz
-        //     acc.error  = Error::NO_ERROR;
-        //     gyro.error = Error::NO_ERROR;
-        //     mag.error  = Error::NO_ERROR;
-        //     Serial.println("Succsessfully initiated IMU9250");
-        // }
-        // Serial.print("Setting DlpfBandwidth: ");
-        // Serial.println(mpu9250.setDlpfBandwidth(MPU9250::DLPF_BANDWIDTH_184HZ));
+        int status = mpu9250.begin();
+        if (status < 0) {
+            if(!mpuErrorPrinted) {
+                Serial.println("MPU9250 initialization unsuccessful");
+                Serial.println("Check MPU9250 wiring");
+                Serial.print("Status: ");
+                Serial.println(status);
+                mpuErrorPrinted = true;
+            }
+            acc.error  = Error::CRITICAL_ERROR;
+            gyro.error = Error::CRITICAL_ERROR;
+            mag.error  = Error::CRITICAL_ERROR;
+
+            mpu9250.setGyroRange(mpu9250.GYRO_RANGE_1000DPS);
+            mpu9250.setAccelRange(mpu9250.ACCEL_RANGE_8G);
+            mpu9250.setSrd(0); //sets gyro and accel read to 1khz, magnetometer read to 100hz
+        } else {
+            mpu9250.setGyroRange(mpu9250.GYRO_RANGE_1000DPS);
+            mpu9250.setAccelRange(mpu9250.ACCEL_RANGE_8G);
+            mpu9250.setMagCalX(0, 1);
+            mpu9250.setMagCalY(0, 1);
+            mpu9250.setMagCalZ(0, 1);
+            mpu9250.setSrd(0); //sets gyro and accel read to 1khz, magnetometer read to 100hz
+            acc.error  = Error::NO_ERROR;
+            gyro.error = Error::NO_ERROR;
+            mag.error  = Error::NO_ERROR;
+            Serial.println("Succsessfully initiated IMU9250");
+        }
+        Serial.print("Setting DlpfBandwidth: ");
+        Serial.println(mpu9250.setDlpfBandwidth(MPU9250::DLPF_BANDWIDTH_184HZ));
         // mag.lpf = 0.1;
     }
 
@@ -253,14 +254,14 @@ public:
         return magScale;
     }
 
-    sensors_event_t a, g, temp;
-    void readMpu6050() {
-        mpu6050.getEvent(&a, &g, &temp);
-    }
+    // sensors_event_t a, g, temp;
+    // void readMpu6050() {
+    //     mpu6050.getEvent(&a, &g, &temp);
+    // }
 
     Vec3 getAccRaw() {
-        // return Vec3(mpu9250.getAccelY_G(), -mpu9250.getAccelX_G(), -mpu9250.getAccelZ_G());
-        return Vec3(a.acceleration.x /  9.807, a.acceleration.y /  9.807, a.acceleration.z /  9.807);
+        return Vec3(mpu9250.getAccelY_G(), -mpu9250.getAccelX_G(), -mpu9250.getAccelZ_G());
+        // return Vec3(a.acceleration.x /  9.807, a.acceleration.y /  9.807, a.acceleration.z /  9.807);
     }
 
     bool magError = false;
@@ -276,8 +277,8 @@ public:
     }
 
     Vec3 getGyrocRaw() {
-        // return Vec3(mpu9250.getGyroY_rads(), mpu9250.getGyroX_rads(), mpu9250.getGyroZ_rads());
-        return Vec3(g.gyro.x, g.gyro.y, -g.gyro.z);
+        return Vec3(mpu9250.getGyroY_rads(), mpu9250.getGyroX_rads(), mpu9250.getGyroZ_rads());
+        // return Vec3(g.gyro.x, g.gyro.y, -g.gyro.z);
     }
 
     double lastX, lastY, lastZ;
@@ -303,8 +304,8 @@ public:
         /**
          * MPU9250
          */
-        readMpu6050();
-        // mpu9250.readSensor();
+        // readMpu6050();
+        mpu9250.readSensor();
         Vec3 accRaw = getAccRaw();
         if(accRaw.getLength() != 0) {
             acc.update (accRaw - accOffset);
@@ -456,7 +457,7 @@ public:
     Vec3 getAccAvg(uint8_t samples, int delayMs) {
         Vec3 avg = Vec3();
         for (size_t i = 0; i < samples; i++) {
-            // mpu9250.readSensor();
+            mpu9250.readSensor();
             avg += getAccRaw() / (double) samples;
             delay(20);
         }
@@ -470,7 +471,7 @@ public:
         Vec3 avg = Vec3();
         const int sampleCount = 100;
         for (size_t i = 0; i < sampleCount; i++) {
-            // mpu9250.readSensor();
+            mpu9250.readSensor();
             Vec3 raw = getGyrocRaw().toDeg();
             avg += raw;
             // if(raw.getLength() == 0) {
@@ -494,7 +495,7 @@ public:
             if(((millis() - start) % 1000 != 0)) {
                 printed = false;
             }
-            // mpu9250.readSensor();
+            mpu9250.readSensor();
             Vec3 gyro = getGyrocRaw().toDeg() - gyroOffset;
             uint64_t now = micros();
             double t = (now - last) / 1000000.0;
