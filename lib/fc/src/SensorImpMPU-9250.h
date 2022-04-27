@@ -22,6 +22,11 @@
 #include <Adafruit_BMP280.h>
 #include <MechaQMC5883.h>
 
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+#include <Wire.h>
+// #include <Wire.h>
+
 #define G 9.807
 
 // #define BME_SCK 13
@@ -37,7 +42,7 @@
  * GND MPU9250                  : GND
  * SCL MPU9250                  : Pin 13
  * SDA MPU9250                  : Pin 11
- * SDO/SAO/ADD/SDD MPU9250      : Pin 12´´´´´´´´
+ * SDO/SAO/ADD/SDD MPU9250      : Pin 12
  * NCS MPU9250                  : Pin 10
  *  
  * Barometer BMP280 Same as MPU
@@ -53,7 +58,7 @@
  * hc-sr04 Trig                 : Pin 6
  * hc-sr04 Echo                 : Pin 21
  * 
- * Bat (voltage divider)        : Pin 22
+ * Bat (voltage divider)        : Pin 22  680k Ohm | 5.6m Ohm
  **/
 
 #define ULTRA_SONIC_TRIG 6
@@ -90,15 +95,19 @@ public:
     double ultraSonicHz = 100;
     uint64_t lastUltraSonic = 0;
 
-    MPU9250 mpu9250;
+    // MPU9250 mpu9250;
+    Adafruit_MPU6050 mpu6050;
     Adafruit_BMP280 bmp;
 
     MechaQMC5883 qmc; // I2C Address: 0x0D
 
     
 
-    MPU9250Sensor() : mpu9250(SPI, 10),
-        bmp(BMP_CS) {}
+    MPU9250Sensor() :
+        // mpu9250(Wire, 0x68),
+        // mpu9250(SPI, 10),
+        bmp(BMP_CS) {
+        }
     
     /**
      * Begin function can becalled as many times as wanted
@@ -107,15 +116,15 @@ public:
     void begin() {
         initMPU9250();
 
-        initBmp280();
+        // initBmp280();
 
-        initGPS();
+        // initGPS();
 
-        initBattery();
+        // initBattery();
         
-        initMag();
+        // initMag();
 
-        initUltraSonic();
+        // initUltraSonic();
     }
 
     void initUltraSonic() {
@@ -169,30 +178,39 @@ public:
     }
 
     void initMPU9250() {
-        int status = mpu9250.begin();
-        if (status < 0) {
-            if(!mpuErrorPrinted) {
-                Serial.println("MPU9250 initialization unsuccessful");
-                Serial.println("Check MPU9250 wiring");
-                Serial.print("Status: ");
-                Serial.println(status);
-                mpuErrorPrinted = true;
-            }
-            acc.error  = Error::CRITICAL_ERROR;
-            gyro.error = Error::CRITICAL_ERROR;
-            mag.error  = Error::CRITICAL_ERROR;
-        } else {
-            mpu9250.setGyroRange(mpu9250.GYRO_RANGE_1000DPS);
-            mpu9250.setAccelRange(mpu9250.ACCEL_RANGE_8G);
-            mpu9250.setMagCalX(0, 1);
-            mpu9250.setMagCalY(0, 1);
-            mpu9250.setMagCalZ(0, 1);
-            mpu9250.setSrd(0); //sets gyro and accel read to 1khz, magnetometer read to 100hz
-            acc.error  = Error::NO_ERROR;
-            gyro.error = Error::NO_ERROR;
-            mag.error  = Error::NO_ERROR;
-            Serial.println("Succsessfully initiated IMU9250");
-        }
+        // int status = mpu9250.begin();
+        mpu6050.begin();
+        mpu6050.setGyroRange(MPU6050_RANGE_1000_DEG);
+        Wire.setClock(1000000);
+        // if (status < 0) {
+        //     if(!mpuErrorPrinted) {
+        //         Serial.println("MPU9250 initialization unsuccessful");
+        //         Serial.println("Check MPU9250 wiring");
+        //         Serial.print("Status: ");
+        //         Serial.println(status);
+        //         mpuErrorPrinted = true;
+        //     }
+        //     acc.error  = Error::CRITICAL_ERROR;
+        //     gyro.error = Error::CRITICAL_ERROR;
+        //     mag.error  = Error::CRITICAL_ERROR;
+
+        //     mpu9250.setGyroRange(mpu9250.GYRO_RANGE_1000DPS);
+        //     mpu9250.setAccelRange(mpu9250.ACCEL_RANGE_8G);
+        //     mpu9250.setSrd(0); //sets gyro and accel read to 1khz, magnetometer read to 100hz
+        // } else {
+        //     mpu9250.setGyroRange(mpu9250.GYRO_RANGE_1000DPS);
+        //     mpu9250.setAccelRange(mpu9250.ACCEL_RANGE_8G);
+        //     mpu9250.setMagCalX(0, 1);
+        //     mpu9250.setMagCalY(0, 1);
+        //     mpu9250.setMagCalZ(0, 1);
+        //     mpu9250.setSrd(0); //sets gyro and accel read to 1khz, magnetometer read to 100hz
+        //     acc.error  = Error::NO_ERROR;
+        //     gyro.error = Error::NO_ERROR;
+        //     mag.error  = Error::NO_ERROR;
+        //     Serial.println("Succsessfully initiated IMU9250");
+        // }
+        // Serial.print("Setting DlpfBandwidth: ");
+        // Serial.println(mpu9250.setDlpfBandwidth(MPU9250::DLPF_BANDWIDTH_184HZ));
         // mag.lpf = 0.1;
     }
 
@@ -215,7 +233,8 @@ public:
     }
 
     Vec3 getAccScale() {
-        return Vec3(mpu9250.getAccelScaleFactorX(), mpu9250.getAccelScaleFactorY(), mpu9250.getAccelScaleFactorZ());
+        return Vec3();
+        // return Vec3(mpu9250.getAccelScaleFactorX(), mpu9250.getAccelScaleFactorY(), mpu9250.getAccelScaleFactorZ());
     }
 
     Vec3 getGyroOffset() {
@@ -234,8 +253,14 @@ public:
         return magScale;
     }
 
+    sensors_event_t a, g, temp;
+    void readMpu6050() {
+        mpu6050.getEvent(&a, &g, &temp);
+    }
+
     Vec3 getAccRaw() {
-        return Vec3(mpu9250.getAccelY_G(), -mpu9250.getAccelX_G(), -mpu9250.getAccelZ_G());
+        // return Vec3(mpu9250.getAccelY_G(), -mpu9250.getAccelX_G(), -mpu9250.getAccelZ_G());
+        return Vec3(a.acceleration.x /  9.807, a.acceleration.y /  9.807, a.acceleration.z /  9.807);
     }
 
     bool magError = false;
@@ -251,29 +276,35 @@ public:
     }
 
     Vec3 getGyrocRaw() {
-        return Vec3(mpu9250.getGyroY_rads(), mpu9250.getGyroX_rads(), mpu9250.getGyroZ_rads());
+        // return Vec3(mpu9250.getGyroY_rads(), mpu9250.getGyroX_rads(), mpu9250.getGyroZ_rads());
+        return Vec3(g.gyro.x, g.gyro.y, -g.gyro.z);
     }
+
+    double lastX, lastY, lastZ;
+    int i;
+    uint32_t lastPrint = 0;
 
     void handle() {
         uint64_t timeTmp = micros();
         /**
          * BMP280
          */
-        if(baroHz > 0 && millis() > lastBaro + (1000.0f / baroHz)) {
-            timeTmp = micros();
-            float altitude = bmp.readAltitude(SEALEVELPRESSURE_HPA);
-            if(altitude != baro.altitude) {
-                baro.altitude = altitude;
-                baro.lastChange = micros();
-            }
-            lastBaro = millis();
-            baro.lastPollTime = micros() - timeTmp;
-            // Serial.println(altitude, 5);
-        }
+        // if(baroHz > 0 && millis() > lastBaro + (1000.0f / baroHz)) {
+        //     timeTmp = micros();
+        //     float altitude = bmp.readAltitude(SEALEVELPRESSURE_HPA);
+        //     if(altitude != baro.altitude) {
+        //         baro.altitude = altitude;
+        //         baro.lastChange = micros();
+        //     }
+        //     lastBaro = millis();
+        //     baro.lastPollTime = micros() - timeTmp;
+        //     // Serial.println(altitude, 5);
+        // }
         /**
          * MPU9250
          */
-        mpu9250.readSensor();
+        readMpu6050();
+        // mpu9250.readSensor();
         Vec3 accRaw = getAccRaw();
         if(accRaw.getLength() != 0) {
             acc.update (accRaw - accOffset);
@@ -286,89 +317,101 @@ public:
             gyro.lastPollTime = micros() - timeTmp;
         }
         timeTmp = micros();
+        // if(lastX != accRaw.x || lastY != accRaw.y || lastZ != accRaw.z) {
+        //     i++;
+        //     lastX = accRaw.x;
+        //     lastY = accRaw.y;
+        //     lastZ = accRaw.z;
+        // }
+        // if(millis() > lastPrint + 1000) {
+        //     Serial.println(i);
+        //     i = 0;
+        //     lastPrint = millis();
+        // }
+
         /**
          * Mag
          */
-        if(magHz > 0 && millis() > lastMag + (1000.0f / magHz)) {
-            mag.update ((getMagRaw() + magOffset) * magScale);
-            mag.lastPollTime = micros() - timeTmp;
-            lastMag = millis();
-        }
-        timeTmp = micros();
+        // if(magHz > 0 && millis() > lastMag + (1000.0f / magHz)) {
+        //     mag.update ((getMagRaw() + magOffset) * magScale);
+        //     mag.lastPollTime = micros() - timeTmp;
+        //     lastMag = millis();
+        // }
+        // timeTmp = micros();
 
         /**
          * Ultra sonic
          */
-        if(ultraSonicHz > 0 && micros() > lastUltraSonic + (1000000.0f / ultraSonicHz)) {
-            /**
-             * Save last
-             */
-            noInterrupts();
-            double distanceM = ultrasonicDuration * 0.00034 / 2;
-            bool received = ultrasonicReceived;
-            ultrasonicReceived = false;
-            interrupts();
+        // if(ultraSonicHz > 0 && micros() > lastUltraSonic + (1000000.0f / ultraSonicHz)) {
+        //     /**
+        //      * Save last
+        //      */
+        //     noInterrupts();
+        //     double distanceM = ultrasonicDuration * 0.00034 / 2;
+        //     bool received = ultrasonicReceived;
+        //     ultrasonicReceived = false;
+        //     interrupts();
 
-            double deltaT = (micros() - lastUltraSonic) / 1000000.0;
-            double lpf = 0.1;
-            double distanceFiltered = distanceM * lpf + (1 - lpf) * ultrasonic.distance;
-            double speed = (distanceFiltered - ultrasonic.distance) / deltaT;
+        //     double deltaT = (micros() - lastUltraSonic) / 1000000.0;
+        //     double lpf = 0.1;
+        //     double distanceFiltered = distanceM * lpf + (1 - lpf) * ultrasonic.distance;
+        //     double speed = (distanceFiltered - ultrasonic.distance) / deltaT;
 
-            ultrasonic.update(distanceFiltered, speed, distanceM > 3);
-            ultrasonic.connected = received;
-            digitalWrite(ULTRA_SONIC_TRIG, HIGH);
-            delayMicroseconds(10);
-            digitalWrite(ULTRA_SONIC_TRIG, LOW);
-            ultrasonicStart = micros();
-            // Serial.println(ultrasonic.distance);
-            lastUltraSonic = micros();
-        }
+        //     ultrasonic.update(distanceFiltered, speed, distanceM > 3);
+        //     ultrasonic.connected = received;
+        //     digitalWrite(ULTRA_SONIC_TRIG, HIGH);
+        //     delayMicroseconds(10);
+        //     digitalWrite(ULTRA_SONIC_TRIG, LOW);
+        //     ultrasonicStart = micros();
+        //     // Serial.println(ultrasonic.distance);
+        //     lastUltraSonic = micros();
+        // }
 
         /**
          * GPS
          */
-        while (Serial1.available()) {
-            char c = Serial1.read();
-            // Serial.write(c);
-            gps.satelites = gpsSensor.satellites.value();
-            if (gpsSensor.encode(c)) {
-                timeTmp = micros();
-                gps.locationValid = gpsSensor.location.isValid();
-                if(gps.locationValid) {
-                    gps.lat = gpsSensor.location.lat(); 
-                    gps.lng = gpsSensor.location.lng();
-                }
-                gps.dateValid = gpsSensor.date.isValid();
-                if(gps.dateValid) {
-                    gps.year = gpsSensor.date.year();
-                    gps.month = gpsSensor.date.month();
-                    gps.day = gpsSensor.date.day();
-                }
-                gps.timeValid = gpsSensor.time.isValid();
-                if(gps.timeValid) {
-                    gps.hour = gpsSensor.time.hour();
-                    gps.minute = gpsSensor.time.minute();
-                    gps.second = gpsSensor.time.second();
-                    gps.centisecond = gpsSensor.time.centisecond();
-                }
-                gps.courseValid = gpsSensor.course.isValid();
-                if(gps.courseValid) {
-                    gps.course = gpsSensor.course.deg();
-                }
-                gps.speedValid = gpsSensor.speed.isValid();
-                if(gps.speedValid) {
-                    gps.speed = gpsSensor.speed.mps();
-                }
-                gps.altitudeValid = gpsSensor.altitude.isValid();
-                if(gps.altitudeValid) {
-                    gps.altitude = gpsSensor.altitude.value();
-                }
-                if(micros() - gps.lastChange > 150000) {
-                    gps.lastChange = micros();
-                }
-                gps.lastPollTime = micros() - timeTmp;
-            }
-        }
+        // while (Serial1.available()) {
+        //     char c = Serial1.read();
+        //     // Serial.write(c);
+        //     gps.satelites = gpsSensor.satellites.value();
+        //     if (gpsSensor.encode(c)) {
+        //         timeTmp = micros();
+        //         gps.locationValid = gpsSensor.location.isValid();
+        //         if(gps.locationValid) {
+        //             gps.lat = gpsSensor.location.lat(); 
+        //             gps.lng = gpsSensor.location.lng();
+        //         }
+        //         gps.dateValid = gpsSensor.date.isValid();
+        //         if(gps.dateValid) {
+        //             gps.year = gpsSensor.date.year();
+        //             gps.month = gpsSensor.date.month();
+        //             gps.day = gpsSensor.date.day();
+        //         }
+        //         gps.timeValid = gpsSensor.time.isValid();
+        //         if(gps.timeValid) {
+        //             gps.hour = gpsSensor.time.hour();
+        //             gps.minute = gpsSensor.time.minute();
+        //             gps.second = gpsSensor.time.second();
+        //             gps.centisecond = gpsSensor.time.centisecond();
+        //         }
+        //         gps.courseValid = gpsSensor.course.isValid();
+        //         if(gps.courseValid) {
+        //             gps.course = gpsSensor.course.deg();
+        //         }
+        //         gps.speedValid = gpsSensor.speed.isValid();
+        //         if(gps.speedValid) {
+        //             gps.speed = gpsSensor.speed.mps();
+        //         }
+        //         gps.altitudeValid = gpsSensor.altitude.isValid();
+        //         if(gps.altitudeValid) {
+        //             gps.altitude = gpsSensor.altitude.value();
+        //         }
+        //         if(micros() - gps.lastChange > 150000) {
+        //             gps.lastChange = micros();
+        //         }
+        //         gps.lastPollTime = micros() - timeTmp;
+        //     }
+        // }
         
         /**
          * vBat
@@ -382,7 +425,7 @@ public:
         bat.vBat = bat.vBat * (1 - batLpf) + batLpf * vConverted; // lpf
 
         bat.cellCount = max(bat.cellCount, (int) ceil((bat.vBat - 0.2) / 4.2));
-        if(bat.cellCount == 5) bat.cellCount = 6; // skip 5s as unusual
+        if(bat.cellCount == 5) bat.cellCount = 6; // skip 5s
 
         // bat.cellCount = 4;
 
@@ -413,7 +456,7 @@ public:
     Vec3 getAccAvg(uint8_t samples, int delayMs) {
         Vec3 avg = Vec3();
         for (size_t i = 0; i < samples; i++) {
-            mpu9250.readSensor();
+            // mpu9250.readSensor();
             avg += getAccRaw() / (double) samples;
             delay(20);
         }
@@ -427,7 +470,7 @@ public:
         Vec3 avg = Vec3();
         const int sampleCount = 100;
         for (size_t i = 0; i < sampleCount; i++) {
-            mpu9250.readSensor();
+            // mpu9250.readSensor();
             Vec3 raw = getGyrocRaw().toDeg();
             avg += raw;
             // if(raw.getLength() == 0) {
@@ -451,7 +494,7 @@ public:
             if(((millis() - start) % 1000 != 0)) {
                 printed = false;
             }
-            mpu9250.readSensor();
+            // mpu9250.readSensor();
             Vec3 gyro = getGyrocRaw().toDeg() - gyroOffset;
             uint64_t now = micros();
             double t = (now - last) / 1000000.0;

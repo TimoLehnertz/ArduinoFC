@@ -76,7 +76,8 @@ int MPU9250::begin(){
     return -4;
   }
   // check the WHO AM I byte, expected value is 0x71 (decimal 113) or 0x73 (decimal 115)
-  if((whoAmI() != 113)&&(whoAmI() != 115)){
+  if((whoAmI() != 113) && (whoAmI() != 115) && (whoAmI() != 112)){
+    // Serial.println(whoAmI());
     return -5;
   }
   // enable accelerometer and gyro

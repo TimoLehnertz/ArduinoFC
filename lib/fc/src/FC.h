@@ -243,13 +243,24 @@ public:
         handleWaypoint();
         handleStatistics();
 
+        Vec3 rightStick(chanels.roll, chanels.pitch, 0);
+
+        // Headfree
+        if(chanels.aux3 < -0.5) {
+            EulerRotation yawRot = EulerRotation(0,0,ins->getYaw());
+            yawRot.rotateReverse(rightStick);
+            // if(millis() % 100 == 0) {
+            //     rightStick.println();
+            // }
+        }
+
         /**
          * save desired states
          */
         float desYawRate = stickToRate(chanels.yaw, yawRate.getRC(), yawRate.getSuper(), yawRate.getRCExpo());
         float throttle = chanels.throttle;
-        float desRollAngle = chanels.roll * angleModeMaxAngle;
-        float desPitchAngle = chanels.pitch * angleModeMaxAngle;
+        float desRollAngle = rightStick.x * angleModeMaxAngle;
+        float desPitchAngle = rightStick.y * angleModeMaxAngle;
 
         Vec3 velLocalDes = Vec3(map(chanels.pitch, -1, 1, -gpsMaxSpeedHorizontal, gpsMaxSpeedHorizontal), map(chanels.roll, -1, 1, -gpsMaxSpeedHorizontal, gpsMaxSpeedHorizontal), map(throttle, 0.0, 1.0, -gpsMaxSpeedVertical, gpsMaxSpeedVertical));
         Vec3 velGlobalDes = velLocalDes.clone();
@@ -274,37 +285,37 @@ public:
         pilotRot.normalize();
 
         switch(flightMode) {
-            case FlightMode::wayPoint: {
-                Vec3 vecToPoint = wayPoint - ins->getLocation();
-                double yaw = ins->getYaw();
+            // case FlightMode::wayPoint: {
+            //     Vec3 vecToPoint = wayPoint - ins->getLocation();
+            //     double yaw = ins->getYaw();
 
-                double desYaw = angleFromCoordinate(ins->sensors->gps.lat, ins->sensors->gps.lng, ins->complementaryFilter.centerLat, ins->complementaryFilter.centerLng);
+            //     double desYaw = angleFromCoordinate(ins->sensors->gps.lat, ins->sensors->gps.lng, ins->complementaryFilter.centerLat, ins->complementaryFilter.centerLng);
 
-                // adjust altitude if no pilot input
-                if(chanels.throttle > 0.1 && chanels.throttle < 0.9) {
-                    velGlobalDes.z = max(min(vecToPoint.z, gpsMaxSpeedVertical), -gpsMaxSpeedVertical);   //     desRollAngle = 0;
-                }
+            //     // adjust altitude if no pilot input
+            //     if(chanels.throttle > 0.1 && chanels.throttle < 0.9) {
+            //         velGlobalDes.z = max(min(vecToPoint.z, gpsMaxSpeedVertical), -gpsMaxSpeedVertical);   //     desRollAngle = 0;
+            //     }
 
-                // If no pilot pitch input, pitch foreward
-                if(chanels.pitch < 0.1 && chanels.pitch > -0.1) {
-                    desPitchAngle = 10;
-                }
-                // If no pilot yaw input, yaw in direction of home
-                if(chanels.yaw < 0.1 && chanels.yaw > -0.1) {
-                    desYawRate = angleFromTo(yaw * RAD_TO_DEG, desYaw);
-                }
-            }
-            case FlightMode::gpsHold: {
-                if(flightMode == FlightMode::gpsHold) { // not if fm == waypoint
-                    Vec3 axisPitch = Vec3();
-                    axisPitch.x = velPIDx.compute(ins->getVelocity().x, velGlobalDes.x);
-                    axisPitch.y = velPIDy.compute(ins->getVelocity().y, velGlobalDes.y);
+            //     // If no pilot pitch input, pitch foreward
+            //     if(chanels.pitch < 0.1 && chanels.pitch > -0.1) {
+            //         desPitchAngle = 10;
+            //     }
+            //     // If no pilot yaw input, yaw in direction of home
+            //     if(chanels.yaw < 0.1 && chanels.yaw > -0.1) {
+            //         desYawRate = angleFromTo(yaw * RAD_TO_DEG, desYaw);
+            //     }
+            // }
+            // case FlightMode::gpsHold: {
+            //     if(flightMode == FlightMode::gpsHold) { // not if fm == waypoint
+            //         Vec3 axisPitch = Vec3();
+            //         axisPitch.x = velPIDx.compute(ins->getVelocity().x, velGlobalDes.x);
+            //         axisPitch.y = velPIDy.compute(ins->getVelocity().y, velGlobalDes.y);
 
-                    ins->getQuaternionRotation().rotateReverseZ(axisPitch);//rotate to local
-                    desRollAngle = axisPitch.y;
-                    desPitchAngle = axisPitch.x;
-                }
-            }
+            //         ins->getQuaternionRotation().rotateReverseZ(axisPitch);//rotate to local
+            //         desRollAngle = axisPitch.y;
+            //         desPitchAngle = axisPitch.x;
+            //     }
+            // }
             case FlightMode::altitudeHold: {
                 float zVel = (float) ins->getVelocity().z;
                 if(zVel < -1) zVel = -2;
@@ -343,8 +354,8 @@ public:
                 // rateRollPID.integrator  = levelRollPID.compute (euler.getRoll()  * RAD_TO_DEG, 0, ins->getRollRate())  * levelInfluence + rateRollPID.integrator * (1 - levelInfluence);
                 // ratePitchPID.integrator = levelPitchPID.compute(euler.getPitch() * RAD_TO_DEG, 0, ins->getPitchRate()) * levelInfluence + rateRollPID.integrator * (1 - levelInfluence);
 
-                float desRollRate  = stickToRate(chanels.roll,  rollRate.getRC(),  rollRate.getSuper(),  rollRate.getRCExpo());
-                float desPitchRate = stickToRate(chanels.pitch, pitchRate.getRC(), pitchRate.getSuper(), pitchRate.getRCExpo());
+                desRollRate  = stickToRate(rightStick.x,  rollRate.getRC(),  rollRate.getSuper(),  rollRate.getRCExpo());
+                desPitchRate = stickToRate(rightStick.y, pitchRate.getRC(), pitchRate.getSuper(), pitchRate.getRCExpo());
                 rollRateAdjust  = rateRollPID.compute (ins->getRollRate(),  desRollRate) ;// * (1 - levelInfluence);
                 pitchRateAdjust = ratePitchPID.compute(ins->getPitchRate(), desPitchRate);// * (1 - levelInfluence);
                 yawRateAdjust   = rateYawPID.compute  (ins->getYawRate(),   desYawRate);
@@ -500,6 +511,9 @@ public:
     }
 
 private:
+    float desRollRate = 0;
+    float desPitchRate = 0;
+
     bool launched = false;
 
     bool autoLiftoff = false;
@@ -589,9 +603,9 @@ private:
         } else {
             flightMode = FlightMode::rate;
         }
-        if(chanels.aux3 < -0.8) {
-            flightMode = FlightMode::gpsHold;
-        }
+        // if(chanels.aux3 < -0.8) {
+        //     flightMode = FlightMode::gpsHold;
+        // }
         if(chanels.aux4 > -0.8) {
             flightMode = FlightMode::wayPoint;
         }
@@ -753,11 +767,14 @@ private:
         if(!armed) {
             airborne = false;
         }
+        airborne = true;
         // I term relax
         Vec3 pilot = pilotRateFromChanels(chanels);
-        rateRollPID.lockI   = abs(ins->getRollRate())  > iRelaxMinRate || abs(pilot.x) > iRelaxMinRate;
-        ratePitchPID.lockI  = abs(ins->getPitchRate()) > iRelaxMinRate || abs(pilot.y) > iRelaxMinRate;
-        rateYawPID.lockI    = abs(ins->getYawRate())   > iRelaxMinRate || abs(pilot.z) > iRelaxMinRate;
+        if(flightMode == FlightMode::rate) {
+            rateRollPID.lockI   = abs(ins->getRollRate())  > iRelaxMinRate || abs(pilot.x) > iRelaxMinRate;
+            ratePitchPID.lockI  = abs(ins->getPitchRate()) > iRelaxMinRate || abs(pilot.y) > iRelaxMinRate;
+            rateYawPID.lockI    = abs(ins->getYawRate())   > iRelaxMinRate || abs(pilot.z) > iRelaxMinRate;
+        }
 
         levelRollPID.lockI   = abs(ins->getRollRate())  > iRelaxMinRate;
         levelPitchPID.lockI  = abs(ins->getPitchRate()) > iRelaxMinRate;
@@ -767,9 +784,9 @@ private:
         ratePitchPID.iEnabled  = airborne;
         rateYawPID.iEnabled    = airborne;
         levelRollPID.iEnabled  = airborne;
-        levelPitchPID.iEnabled = airborne;
-        levelYawPID.iEnabled   = airborne;
-        altitudePID.iEnabled   = airborne;
+        // levelPitchPID.iEnabled = airborne;
+        // levelYawPID.iEnabled   = airborne;
+        // altitudePID.iEnabled   = airborne;
         if(airborne && micros() - airBornTime > launchIBoostSeconds * 1000000) { // 5 Seconds after arm
             levelRollPID.iMul = launchIBoostLevel;
             levelPitchPID.iMul = launchIBoostLevel;
@@ -812,6 +829,7 @@ private:
         velPIDx.reset();
         velPIDy.reset();
         ins->resetAltitude();
+        ins->resetYaw();
         gyroRot = Quaternion();
         pilotRot = Quaternion();
     }

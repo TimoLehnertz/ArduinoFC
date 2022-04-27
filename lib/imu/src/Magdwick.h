@@ -168,6 +168,8 @@ public:
         
     }
 
+    void resetYaw() {}
+
     void resetAltitude() {
         loc.z = 0;
     }

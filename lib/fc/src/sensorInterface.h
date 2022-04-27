@@ -52,9 +52,10 @@ public:
         Vec3 vec(x1, y1, z1);
         if(x1 != x || y1 != y || z1 != z) {
             lastChange = micros();
-            for (size_t i = 0; i < 1; i++) {
-                last = lpfs[i].update(vec);
-            }
+            // for (size_t i = 0; i < 1; i++) {
+            //     last = lpfs[i].update(vec);
+            // }
+            last = vec;
             
             x = last.x;
             y = last.y;

@@ -51,7 +51,7 @@ public:
 protected:
     bool armed;
 
-    float minThrottle = 0.025; //mapping values
+    float minThrottle = 0.06; //mapping values
     float maxThrottle = 1;
 
     double map(double x, double in_min, double in_max, double out_min, double out_max) {

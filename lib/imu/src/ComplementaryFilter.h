@@ -311,6 +311,12 @@ private:
         resetAltitude();
     }
 
+    void resetYaw() {
+        EulerRotation euler = rot.toEulerZYX();
+        euler.z = 0;
+        rot = Quaternion(euler);
+    }
+
     void resetAltitude() {
         baroOffset = lastRawBaroAltitude;
         lastBaroAlt = baroAltitude;

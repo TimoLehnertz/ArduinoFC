@@ -42,6 +42,7 @@ public:
     virtual void begin() = 0;
     virtual void handle() = 0;
     virtual void resetAltitude() = 0;
+    virtual void resetYaw() = 0;
     
     virtual void reset() = 0;
 

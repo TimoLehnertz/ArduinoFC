@@ -30,6 +30,7 @@ public:
 
     void reset() {getSensorFusion()->reset();}
     void resetAltitude() {getSensorFusion()->resetAltitude();}
+    void resetYaw() {getSensorFusion()->resetYaw();}
 
     bool isAngleSmallerThanDeg(double deg) {
         float roll = getRoll() * RAD_TO_DEG;
