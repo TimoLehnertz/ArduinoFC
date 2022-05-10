@@ -115,16 +115,40 @@ public:
      */
     void begin() {
         initMPU9250();
+        Serial.println("MPU9250 started");
+        Serial.print("(");
+        Serial.print(millis());
+        Serial.println(")");
 
         initBmp280();
+        Serial.println("Bmp280 started");
+        Serial.print("(");
+        Serial.print(millis());
+        Serial.println(")");
 
         initGPS();
+        Serial.println("GPS started");
+        Serial.print("(");
+        Serial.print(millis());
+        Serial.println(")");
 
         initBattery();
+        Serial.println("Battery sensor started");
+        Serial.print("(");
+        Serial.print(millis());
+        Serial.println(")");
         
         initMag();
+        Serial.println("Mag started");
+        Serial.print("(");
+        Serial.print(millis());
+        Serial.println(")");
 
         initUltraSonic();
+        Serial.println("UltraSonic started");
+        Serial.print("(");
+        Serial.print(millis());
+        Serial.println(")");
     }
 
     void initUltraSonic() {
@@ -147,7 +171,7 @@ public:
 
     void initGPS() {
         Serial1.begin(9600);
-        delay(2000);
+        delay(100);
         char disable_GPGSV[11] = {0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0xF0, 0x03, 0x00, 0xFD, 0x15};
         Serial1.write(disable_GPGSV, 11);
         delay(200);
@@ -178,10 +202,6 @@ public:
     }
 
     void initMPU9250() {
-        // mpu6050.begin();
-        // mpu6050.setGyroRange(MPU6050_RANGE_1000_DEG);
-        // Wire.setClock(1000000);
-
         int status = mpu9250.begin();
         if (status < 0) {
             if(!mpuErrorPrinted) {
@@ -208,10 +228,9 @@ public:
             acc.error  = Error::NO_ERROR;
             gyro.error = Error::NO_ERROR;
             mag.error  = Error::NO_ERROR;
-            Serial.println("Succsessfully initiated IMU9250");
+            Serial.println("Succsessfully initiated MPU9250");
         }
-        Serial.print("Setting DlpfBandwidth: ");
-        Serial.println(mpu9250.setDlpfBandwidth(MPU9250::DLPF_BANDWIDTH_184HZ));
+        mpu9250.setDlpfBandwidth(MPU9250::DLPF_BANDWIDTH_184HZ);
         // mag.lpf = 0.1;
     }
 

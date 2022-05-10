@@ -16,21 +16,22 @@
 #include "../../pid/pid.h"
 #include "flightModes.h"
 #include "error.h"
-#include <DMAChannel.h>
+#include <DShot.h>
+// #include <DMAChannel.h>
 
 /**
  * Default pids
  */
 //rates
-#define RATE_PID_RP                 0.00110f//Roll
-#define RATE_PID_RI                 0.00800f
-#define RATE_PID_RD                 0.00370f
+#define RATE_PID_RP                 0.00150f//Roll
+#define RATE_PID_RI                 0.00100f
+#define RATE_PID_RD                 0.00050f
 #define RATE_PID_RD_LPF             0.10000f
 #define RATE_PID_R_MAX              1.00000f
 
-#define RATE_PID_PP                 0.00110f//pitch
-#define RATE_PID_PI                 0.00800f
-#define RATE_PID_PD                 0.00370f
+#define RATE_PID_PP                 0.00150f//pitch
+#define RATE_PID_PI                 0.00100f
+#define RATE_PID_PD                 0.00050f
 #define RATE_PID_PD_LPF             0.10000f
 #define RATE_PID_P_MAX              1.00000f
 
@@ -243,7 +244,7 @@ public:
 
         // Headfree
         if(chanels.aux3 < -0.5) {
-            EulerRotation yawRot = EulerRotation(0,0,ins->getYaw());
+            EulerRotation yawRot = EulerRotation(0, 0, ins->getYaw());
             yawRot.rotateReverse(rightStick);
             // if(millis() % 100 == 0) {
             //     rightStick.println();
@@ -328,6 +329,14 @@ public:
                 yawRateAdjust   = rateYawPID.compute(ins->getYawRate(), desYawRate);
                 break;
             }
+            case FlightMode::turtle: {
+                // Serial.println(-chanels.roll - chanels.pitch);
+                mFL->write(-chanels.roll - chanels.pitch);
+                mFR->write(+chanels.roll - chanels.pitch);
+                mBL->write(-chanels.roll + chanels.pitch);
+                mBR->write(+chanels.roll + chanels.pitch);
+                break;
+            }
             case FlightMode::rate: {
                 
                 // pilotRot = Quaternion::lerp(pilotRot, gyroRot, 0.01);
@@ -368,7 +377,9 @@ public:
         /**
          * Handle Motors
          */
-        controllMotors(throttle, rollRateAdjust, pitchRateAdjust, yawRateAdjust);
+        if(flightMode != FlightMode::turtle) {
+            controllMotors(throttle, rollRateAdjust, pitchRateAdjust, yawRateAdjust);
+        }
 
         mFL->handle();
         mFR->handle();
@@ -592,19 +603,19 @@ private:
      * Decides what flightmode to be used
      */
     void handleFlightMode() {
-         if(chanels.aux2 > 0.75) {
-            flightMode = FlightMode::altitudeHold;
-        } else if(chanels.aux2 > -0.3){
-            flightMode = FlightMode::level;
-        } else {
-            flightMode = FlightMode::rate;
+        if(!isArmed()) {
+            if(chanels.aux2 < -0.8) {
+                flightMode = FlightMode::rate;
+            } else {
+                flightMode = FlightMode::turtle;
+            }
         }
         // if(chanels.aux3 < -0.8) {
         //     flightMode = FlightMode::gpsHold;
         // }
-        if(chanels.aux4 > -0.8) {
-            flightMode = FlightMode::wayPoint;
-        }
+        // if(chanels.aux4 > -0.8) {
+        //     flightMode = FlightMode::wayPoint;
+        // }
 
         /**
          * Never use flight mode with unsufficient sensors
@@ -618,7 +629,7 @@ private:
             flightMode = overwriteFlightMode;
         }
         if(flightMode != lastFlightMode) {
-            initFlightMode(flightMode);
+            initFlightMode(lastFlightMode, flightMode);
         }
         lastFlightMode = flightMode;
     }
@@ -640,16 +651,32 @@ private:
      * 
      * @param fm flight mode to be initialized
      */
-    void initFlightMode(FlightMode::FlightMode_t fm) {
-        if(fm >= FlightMode::altitudeHold) {
+    void initFlightMode(FlightMode::FlightMode_t prevFm, FlightMode::FlightMode_t newFm) {
+        if(newFm >= FlightMode::altitudeHold) {
             if(altitudePID.integrator == 0 && airborne) {
                 altitudePID.integrator = hoverThrottle;
             }
         }
-        if(fm == FlightMode::wayPoint) {
+        if(newFm == FlightMode::wayPoint) {
             // wayPoint = Vec3(0,0,max(50, ins->getLocation().z + 20));
             Vec3 loc = ins->getLocation();
             wayPoint = Vec3(0, 0, loc.z + 5); // launch position at height 5 meters higher than waypoint start
+        }
+        if(newFm == FlightMode::turtle) {
+            Serial.println("Entering turtle mode");
+            mFL->sendComand(DIGITAL_CMD_BEEP1, 1);
+            // mFL->sendComand(DIGITAL_CMD_SPIN_DIRECTION_2, 100);
+            // mFR->sendComand(DIGITAL_CMD_SPIN_DIRECTION_2, 100);
+            // mBL->sendComand(DIGITAL_CMD_SPIN_DIRECTION_2, 100);
+            // mBR->sendComand(DIGITAL_CMD_SPIN_DIRECTION_2, 100);
+        }
+        if(prevFm == FlightMode::turtle) {
+            Serial.println("Exiting turtle mode");
+            mFL->sendComand(DIGITAL_CMD_BEEP1, 1);
+            mFL->sendComand(DIGITAL_CMD_SPIN_DIRECTION_NORMAL, 10);
+            mFR->sendComand(DIGITAL_CMD_SPIN_DIRECTION_NORMAL, 10);
+            mBL->sendComand(DIGITAL_CMD_SPIN_DIRECTION_NORMAL, 10);
+            mBR->sendComand(DIGITAL_CMD_SPIN_DIRECTION_NORMAL, 10);
         }
     }
 

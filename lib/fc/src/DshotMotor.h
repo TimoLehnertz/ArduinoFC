@@ -2,7 +2,6 @@
 #include <Arduino.h>
 #include <DShot.h>
 #include <Motor.h>
-
 class DShotMotor : public Motor, DShot {
 public:
     DShotMotor() {}
@@ -38,7 +37,7 @@ public:
     }
 
     u_int8_t getPin() {
-        return pin;
+        return DShot::getPin();
     }
 
     void setPin(uint8_t pin) {

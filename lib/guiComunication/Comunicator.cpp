@@ -234,16 +234,22 @@ void Comunicator::handleMsp() {
           payload[0] = fc->rateRollPID.p  * 10000.0;
           payload[1] = fc->rateRollPID.i  * 1000.0;
           payload[2] = fc->rateRollPID.d  * 10000.0;
-          payload[3] = fc->ratePitchPID.p * 10000.0;
-          payload[4] = fc->ratePitchPID.i * 1000.0;
-          payload[5] = fc->ratePitchPID.d * 10000.0;
+          payload[3] = fc->rateRollPID.p  * 10000.0;
+          payload[4] = fc->rateRollPID.i  * 1000.0;
+          payload[5] = fc->rateRollPID.d  * 10000.0;
+          // payload[3] = fc->ratePitchPID.p * 10000.0;
+          // payload[4] = fc->ratePitchPID.i * 1000.0;
+          // payload[5] = fc->ratePitchPID.d * 10000.0;
         } else if(fc->flightMode == FlightMode::level) {
           payload[0] = fc->levelRollPID.p * 10000.0;
           payload[1] = fc->levelRollPID.i * 10000.0;
           payload[2] = fc->levelRollPID.d * 10000.0;
-          payload[3] = fc->levelPitchPID.p * 10000.0;
-          payload[4] = fc->levelPitchPID.i * 10000.0;
-          payload[5] = fc->levelPitchPID.d * 10000.0;
+          payload[3] = fc->levelRollPID.p * 10000.0;
+          payload[4] = fc->levelRollPID.i * 10000.0;
+          payload[5] = fc->levelRollPID.d * 10000.0;
+          // payload[3] = fc->levelPitchPID.p * 10000.0;
+          // payload[4] = fc->levelPitchPID.i * 10000.0;
+          // payload[5] = fc->levelPitchPID.d * 10000.0;
         } else if(fc->flightMode == FlightMode::altitudeHold) {
           payload[0] = fc->altitudePID.p * 10000.0;
           payload[1] = fc->altitudePID.i * 10000.0;
@@ -287,16 +293,22 @@ void Comunicator::handleMsp() {
           fc->rateRollPID.p = mspBuff[0] / 10000.0;
           fc->rateRollPID.i = mspBuff[1] / 1000.0;
           fc->rateRollPID.d = mspBuff[2] / 10000.0;
-          fc->ratePitchPID.p = mspBuff[3] / 10000.0;
-          fc->ratePitchPID.i = mspBuff[4] / 1000.0;
-          fc->ratePitchPID.d = mspBuff[5] / 10000.0;
+          fc->ratePitchPID.p = mspBuff[0] / 10000.0;
+          fc->ratePitchPID.i = mspBuff[1] / 1000.0;
+          fc->ratePitchPID.d = mspBuff[2] / 10000.0;
+          // fc->ratePitchPID.p = mspBuff[3] / 10000.0;
+          // fc->ratePitchPID.i = mspBuff[4] / 1000.0;
+          // fc->ratePitchPID.d = mspBuff[5] / 10000.0;
         } else if(fc->flightMode == FlightMode::level) {
           fc->levelRollPID.p = mspBuff[0] / 10000.0;
           fc->levelRollPID.i = mspBuff[1] / 10000.0;
           fc->levelRollPID.d = mspBuff[2] / 10000.0;
-          fc->levelPitchPID.p = mspBuff[3] / 10000.0;
-          fc->levelPitchPID.i = mspBuff[4] / 10000.0;
-          fc->levelPitchPID.d = mspBuff[5] / 10000.0;
+          fc->levelPitchPID.p = mspBuff[0] / 10000.0;
+          fc->levelPitchPID.i = mspBuff[1] / 10000.0;
+          fc->levelPitchPID.d = mspBuff[2] / 10000.0;
+          // fc->levelPitchPID.p = mspBuff[3] / 10000.0;
+          // fc->levelPitchPID.i = mspBuff[4] / 10000.0;
+          // fc->levelPitchPID.d = mspBuff[5] / 10000.0;
         } else if(fc->flightMode == FlightMode::altitudeHold) {
           fc->altitudePID.p = mspBuff[0] / 10000.0;
           fc->altitudePID.i = mspBuff[1] / 10000.0;
@@ -1567,6 +1579,9 @@ void Comunicator::handleCRSFTelem() {
     }
     case FlightMode::rate: {
       crsf->updateTelemetryFlightMode("Rate"); break;
+    }
+    case FlightMode::turtle: {
+      crsf->updateTelemetryFlightMode("turt"); break;
     }
     case FlightMode::level: {
       crsf->updateTelemetryFlightMode("Lvl"); break;

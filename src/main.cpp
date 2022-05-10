@@ -63,32 +63,45 @@ void handleLoopFreq() {
   com.actualFreq = 1000000.0f / (micros() - com.loopStart);
 }
 
+void printMsLn() {
+  Serial.print("(");
+  Serial.print(millis());
+  Serial.println(")");
+}
+
 void setup() {
   Serial.begin (921600);// Gui over usb
   Serial2.begin(115200);// Gui over air(not used)
   Serial4.begin(115200);// DJI MSP
+  Serial.print("Serial ports up"); printMsLn();
   // delay(2000);
   Storage::begin();     // EEPROM storage to save settings
+  Serial.print("EEPROM initiated"); printMsLn();
   com.begin();
+  Serial.print("COM started"); printMsLn();
   crsf.begin();
+  Serial.print("Crossfire started"); printMsLn();
   sensors.begin();      // Initiate all sensors (takes some seconds)
+  Serial.print("Sensors started"); printMsLn();
   mFL.begin(MOTOR_1);
   mFR.begin(MOTOR_2);
   mBL.begin(MOTOR_3);
   mBR.begin(MOTOR_4);
-  // mFL.arm();
+  Serial.print("Motors started"); printMsLn();
   fc.begin();
+  Serial.print("FC"); printMsLn();
   com.readEEPROM();     // Read Settings from EEPROM
+  Serial.print("Loaded setup from EEPROM"); printMsLn();
   ins.begin();
-  Serial.print("Boot time: ");
-  Serial.println(millis());
+  Serial.print("INS started"); printMsLn();
+  Serial.print("Bootup complete"); printMsLn();
+  Serial.println("Entering loop...");
 }
 
 void loop() {
   uint64_t now = micros();
   com.loopStart = now;// timing statistics available in GUI
   crsf.handle(); // talk to radio controller
-  Serial.println(crsf.getChanelsCoverted().throttle);
   com.crsfTime = micros();
   sensors.handle(); // schedule and get sensor readings
   com.sensorsTime = micros();
@@ -104,6 +117,10 @@ void loop() {
   if(!com.motorOverwrite) { // available in GUI
     fc.handle(); //also handles motors
   } else {
+    mFL.arm();
+    mFR.arm();
+    mBL.arm();
+    mBR.arm();
     mFL.writeRaw(((float) com.motorFL) / 100);
     mFR.writeRaw(((float) com.motorFR) / 100);
     mBL.writeRaw(((float) com.motorBL) / 100);

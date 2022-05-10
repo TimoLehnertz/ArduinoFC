@@ -257,7 +257,7 @@ public:
 
     float batLpf = 0.0001;
     float batOffset = -0.105;
-    float vBatMul = 13.3;
+    float vBatMul = 9.85000;
 
     float accLpf = 1.0f;
     float gyroLpf = 1.0f;
